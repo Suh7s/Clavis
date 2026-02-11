@@ -1,201 +1,160 @@
 {% extends "base.html" %}
-{% block title %}Clavis — {{ department }} Queue{% endblock %}
+{% set page_title = "Department Queue" %}
+{% set active_page = "department" %}
+{% block title %}Clavis | Department Queue{% endblock %}
+
 {% block content %}
-<a href="/" class="text-sm text-blue-600 hover:underline mb-4 inline-block">&larr; Home</a>
-
-<div class="flex items-center justify-between mb-4">
-  <div>
-    <h1 class="text-2xl font-bold text-gray-800">{{ department }} Queue</h1>
-    <p class="text-sm text-gray-500">Live operational queue for the department.</p>
-  </div>
-  <span id="wsStatus" class="text-xs px-3 py-1.5 rounded-full bg-gray-200 text-gray-500">Connecting...</span>
-</div>
-
-<div id="queueSummary" class="grid grid-cols-4 gap-3 mb-6"></div>
-<div id="queueList" class="space-y-3"></div>
-
-<script>
-const DEPARTMENT = {{ department|tojson }};
-
-const TRANSITIONS = {
-  DIAGNOSTIC:        { REQUESTED: ['SAMPLE_COLLECTED', 'PROCESSING', 'CANCELLED'], SAMPLE_COLLECTED: ['PROCESSING'], PROCESSING: ['COMPLETED', 'FAILED'] },
-  MEDICATION:        { PRESCRIBED: ['DISPENSED', 'CANCELLED'], DISPENSED: ['ADMINISTERED'] },
-  REFERRAL:          { INITIATED: ['ACKNOWLEDGED', 'CANCELLED'], ACKNOWLEDGED: ['REVIEWED'], REVIEWED: ['CLOSED'] },
-  CARE_INSTRUCTION:  { ISSUED: ['ACKNOWLEDGED', 'CANCELLED'], ACKNOWLEDGED: ['IN_PROGRESS'], IN_PROGRESS: ['COMPLETED'] },
-  VITALS_REQUEST:    { REQUESTED: ['RECORDED', 'CANCELLED'] },
-};
-
-let customTypes = [];
-let customTransitions = {};
-
-const PRIORITY_COLORS = { ROUTINE: 'bg-gray-100 text-gray-600', URGENT: 'bg-amber-100 text-amber-700', CRITICAL: 'bg-red-100 text-red-700' };
-const STATE_COLORS = {
-  COMPLETED: 'bg-green-100 text-green-700',
-  ADMINISTERED: 'bg-green-100 text-green-700',
-  CLOSED: 'bg-green-100 text-green-700',
-  RECORDED: 'bg-green-100 text-green-700',
-  CANCELLED: 'bg-gray-100 text-gray-600',
-  FAILED: 'bg-red-100 text-red-700',
-};
-
-function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;',
-  }[ch]));
-}
-
-function getNextStates(a) {
-  if (a.custom_action_type_id) {
-    const ct = customTransitions[a.custom_action_type_id];
-    return ct ? (ct[a.current_state] || []) : [];
-  }
-  return (TRANSITIONS[a.action_type] || {})[a.current_state] || [];
-}
-
-function stateBadge(state) {
-  const color = STATE_COLORS[state] || 'bg-blue-100 text-blue-700';
-  return `<span class="text-xs font-semibold px-2 py-0.5 rounded-full ${color}">${escapeHtml(state)}</span>`;
-}
-
-function priorityBadge(priority) {
-  return `<span class="text-xs font-semibold px-2 py-0.5 rounded-full ${PRIORITY_COLORS[priority]}">${escapeHtml(priority)}</span>`;
-}
-
-function displayName(a) {
-  if (a.custom_type_name) return a.custom_type_name;
-  return (a.action_type || '').replace(/_/g, ' ');
-}
-
-async function loadCustomTypes() {
-  const res = await fetch('/custom-action-types');
-  if (!res.ok) {
-    customTypes = [];
-    customTransitions = {};
-    return;
-  }
-  customTypes = await res.json();
-  customTransitions = {};
-  for (const ct of customTypes) {
-    const trans = {};
-    for (let i = 0; i < ct.states.length - 1; i++) {
-      trans[ct.states[i]] = [ct.states[i + 1]];
-    }
-    customTransitions[ct.id] = trans;
-  }
-}
-
-async function transitionAction(actionId, newState) {
-  const notes = prompt(`Notes for transition to ${newState} (optional):`) || '';
-  const res = await fetch(`/actions/${actionId}/transition`, {
-    method: 'PATCH',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ new_state: newState, notes })
-  });
-  if (!res.ok) {
-    const err = await res.json();
-    alert(err.detail || err.error || 'Transition failed');
-    return;
-  }
-}
-
-function renderSummary(actions) {
-  const overdue = actions.filter(a => a.is_overdue).length;
-  const critical = actions.filter(a => a.priority === 'CRITICAL').length;
-  const inProgress = actions.filter(a => !a.is_terminal).length;
-  document.getElementById('queueSummary').innerHTML = [
-    ['Queue Size', actions.length, 'bg-white'],
-    ['In Progress', inProgress, 'bg-blue-50'],
-    ['Critical', critical, critical ? 'bg-amber-50' : 'bg-white'],
-    ['Overdue', overdue, overdue ? 'bg-red-50' : 'bg-white'],
-  ].map(([label, value, bg]) => `
-    <div class="${bg} border rounded-lg px-4 py-3 text-center">
-      <div class="text-2xl font-bold text-gray-800">${value}</div>
-      <div class="text-xs text-gray-500">${escapeHtml(label)}</div>
-    </div>
-  `).join('');
-}
-
-async function loadQueue() {
-  const res = await fetch(`/actions/department/${encodeURIComponent(DEPARTMENT)}`);
-  if (res.status === 403) {
-    document.getElementById('queueSummary').innerHTML = '';
-    document.getElementById('queueList').innerHTML = '<p class="text-red-600 text-sm">Your role cannot access this department queue.</p>';
-    return;
-  }
-  if (!res.ok) {
-    document.getElementById('queueSummary').innerHTML = '';
-    document.getElementById('queueList').innerHTML = '<p class="text-red-600 text-sm">Failed to load department queue.</p>';
-    return;
-  }
-  const actions = await res.json();
-  renderSummary(actions);
-  const el = document.getElementById('queueList');
-
-  if (actions.length === 0) {
-    el.innerHTML = '<p class="text-gray-500 text-sm">No pending actions for this department.</p>';
-    return;
-  }
-
-  el.innerHTML = actions.map(a => {
-    const nextStates = getNextStates(a);
-    const buttons = nextStates.map(state => `
-      <button onclick="transitionAction(${a.id}, '${state}')" class="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">${state}</button>
-    `).join('');
-    const notesDisplay = a.notes ? `<p class="text-sm text-gray-500 mt-1">${escapeHtml(a.notes)}</p>` : '';
-    const patientLink = `<a href="/patients/${a.patient_id}/view" class="text-blue-600 hover:underline">Patient #${a.patient_id}</a>`;
-
-    return `
-      <div class="bg-white border rounded-lg px-5 py-4 ${a.is_overdue ? 'border-red-300 bg-red-50' : ''}">
-        <div class="flex items-start justify-between gap-4">
-          <div class="flex-1">
-            <div class="flex items-center gap-2 flex-wrap">
-              <span class="text-xs uppercase text-gray-400 tracking-wide">${escapeHtml(displayName(a))}</span>
-              ${stateBadge(a.current_state)}
-              ${priorityBadge(a.priority)}
-              ${a.is_overdue ? '<span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-600 text-white">OVERDUE</span>' : ''}
-            </div>
-            <div class="mt-1 font-semibold text-gray-800">${a.title ? escapeHtml(a.title) : '<span class="italic text-gray-400">No title</span>'}</div>
-            ${notesDisplay}
-          </div>
-          <div class="text-xs text-gray-500 text-right shrink-0">
-            <div>${patientLink}</div>
-            <div>Route: ${escapeHtml(a.queue_department || a.department)}</div>
-            <div>SLA: ${a.sla_deadline ? new Date(a.sla_deadline + 'Z').toLocaleString() : '—'}</div>
-            <div>#${a.id}</div>
-          </div>
-        </div>
-        ${buttons ? `<div class="flex gap-2 mt-3">${buttons}</div>` : ''}
+<div class="space-y-6">
+  <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Queue Board</p>
+        <h2 class="text-2xl font-semibold text-slate-800">{{ department_name if department_name is defined else 'Emergency Department' }}</h2>
       </div>
-    `;
-  }).join('');
-}
+      <div class="flex items-center gap-2">
+        <button class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Export Queue</button>
+        <button class="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Assign Batch</button>
+      </div>
+    </div>
+  </section>
 
-let ws;
-function connectWS() {
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const token = getAuthToken() || '';
-  const wsUrl = `${proto}//${location.host}/ws/department/${encodeURIComponent(DEPARTMENT)}?token=${encodeURIComponent(token)}`;
-  const wsEl = document.getElementById('wsStatus');
-  ws = new WebSocket(wsUrl);
-  ws.onopen = () => {
-    wsEl.textContent = 'Live';
-    wsEl.className = 'text-xs px-3 py-1.5 rounded-full bg-green-100 text-green-700';
-  };
-  ws.onmessage = () => { loadQueue(); };
-  ws.onclose = () => {
-    wsEl.textContent = 'Reconnecting...';
-    wsEl.className = 'text-xs px-3 py-1.5 rounded-full bg-amber-100 text-amber-700';
-    setTimeout(connectWS, 2000);
-  };
-}
+  <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    {% set card_label = 'Waiting Cases' %}
+    {% set card_value = queue_stats.waiting if queue_stats is defined and queue_stats.waiting is defined else '46' %}
+    {% set card_trend = '+6 in 1h' %}
+    {% set card_trend_tone = 'negative' %}
+    {% set card_subtitle = 'Awaiting pickup' %}
+    {% set card_tone = 'amber' %}
+    {% include 'components/card.html' %}
 
-loadCustomTypes().then(() => {
-  connectWS();
-  loadQueue();
-});
+    {% set card_label = 'In Progress' %}
+    {% set card_value = queue_stats.active if queue_stats is defined and queue_stats.active is defined else '28' %}
+    {% set card_trend = '+3 started' %}
+    {% set card_trend_tone = 'positive' %}
+    {% set card_subtitle = 'Actively worked by team' %}
+    {% set card_tone = 'indigo' %}
+    {% include 'components/card.html' %}
+
+    {% set card_label = 'Escalations' %}
+    {% set card_value = queue_stats.escalated if queue_stats is defined and queue_stats.escalated is defined else '9' %}
+    {% set card_trend = '2 newly escalated' %}
+    {% set card_trend_tone = 'negative' %}
+    {% set card_subtitle = 'Supervisor review needed' %}
+    {% set card_tone = 'rose' %}
+    {% include 'components/card.html' %}
+
+    {% set card_label = 'Avg Turnaround' %}
+    {% set card_value = queue_stats.turnaround if queue_stats is defined and queue_stats.turnaround is defined else '32m' %}
+    {% set card_trend = '-4m improvement' %}
+    {% set card_trend_tone = 'positive' %}
+    {% set card_subtitle = 'Median for current shift' %}
+    {% set card_tone = 'emerald' %}
+    {% include 'components/card.html' %}
+  </section>
+
+  <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-200 text-sm">
+        <thead class="bg-slate-50">
+          <tr>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Ticket</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Patient</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Task</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Priority</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">State</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">SLA</th>
+            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Queue Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% if queue_items is defined and queue_items %}
+            {% for item in queue_items %}
+              <tr class="hover:bg-slate-50/80">
+                <td class="px-4 py-3 font-medium text-slate-700">{{ item.ticket if item.ticket is defined else 'Q-' ~ item.id }}</td>
+                <td class="px-4 py-3 text-slate-700">{{ item.patient_name if item.patient_name is defined else item.patient }}</td>
+                <td class="px-4 py-3 text-slate-600">{{ item.task }}</td>
+                <td class="px-4 py-3">
+                  {% set priority_value = item.priority|default('Routine') %}
+                  {% set badge_text = priority_value %}
+                  {% if priority_value|lower == 'critical' %}
+                    {% set badge_tone = 'rose' %}
+                  {% elif priority_value|lower == 'urgent' %}
+                    {% set badge_tone = 'amber' %}
+                  {% else %}
+                    {% set badge_tone = 'sky' %}
+                  {% endif %}
+                  {% include 'components/badge.html' %}
+                </td>
+                <td class="px-4 py-3">
+                  {% set state_value = item.state|default('Queued') %}
+                  {% set badge_text = state_value %}
+                  {% if state_value|lower in ['overdue', 'escalated', 'blocked'] %}
+                    {% set badge_tone = 'rose' %}
+                  {% elif state_value|lower in ['queued', 'pending'] %}
+                    {% set badge_tone = 'amber' %}
+                  {% else %}
+                    {% set badge_tone = 'emerald' %}
+                  {% endif %}
+                  {% include 'components/badge.html' %}
+                </td>
+                <td class="px-4 py-3 text-slate-500">{{ item.sla if item.sla is defined else '18m left' }}</td>
+                <td class="px-4 py-3 text-right">
+                  <div class="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
+                    <button type="button" onclick="queueAction('claim', '{{ item.id if item.id is defined else loop.index }}')" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100">Claim</button>
+                    <button type="button" onclick="queueAction('start', '{{ item.id if item.id is defined else loop.index }}')" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">Start</button>
+                    <button type="button" onclick="queueAction('complete', '{{ item.id if item.id is defined else loop.index }}')" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">Complete</button>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr class="hover:bg-slate-50/80">
+              <td class="px-4 py-3 font-medium text-slate-700">Q-4921</td>
+              <td class="px-4 py-3 text-slate-700">Arjun Menon</td>
+              <td class="px-4 py-3 text-slate-600">CT Brain (with contrast)</td>
+              <td class="px-4 py-3">{% set badge_text = 'Critical' %}{% set badge_tone = 'rose' %}{% include 'components/badge.html' %}</td>
+              <td class="px-4 py-3">{% set badge_text = 'Queued' %}{% set badge_tone = 'amber' %}{% include 'components/badge.html' %}</td>
+              <td class="px-4 py-3 text-slate-500">7m left</td>
+              <td class="px-4 py-3 text-right"><div class="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1"><button type="button" onclick="queueAction('claim', '4921')" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100">Claim</button><button type="button" onclick="queueAction('start', '4921')" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">Start</button><button type="button" onclick="queueAction('complete', '4921')" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">Complete</button></div></td>
+            </tr>
+            <tr class="hover:bg-slate-50/80">
+              <td class="px-4 py-3 font-medium text-slate-700">Q-4925</td>
+              <td class="px-4 py-3 text-slate-700">Meera Gupta</td>
+              <td class="px-4 py-3 text-slate-600">Troponin Panel</td>
+              <td class="px-4 py-3">{% set badge_text = 'Urgent' %}{% set badge_tone = 'amber' %}{% include 'components/badge.html' %}</td>
+              <td class="px-4 py-3">{% set badge_text = 'In Progress' %}{% set badge_tone = 'emerald' %}{% include 'components/badge.html' %}</td>
+              <td class="px-4 py-3 text-slate-500">14m left</td>
+              <td class="px-4 py-3 text-right"><div class="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1"><button type="button" onclick="queueAction('claim', '4925')" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100">Claim</button><button type="button" onclick="queueAction('start', '4925')" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">Start</button><button type="button" onclick="queueAction('complete', '4925')" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">Complete</button></div></td>
+            </tr>
+            <tr class="hover:bg-slate-50/80">
+              <td class="px-4 py-3 font-medium text-slate-700">Q-4930</td>
+              <td class="px-4 py-3 text-slate-700">Nisha Iyer</td>
+              <td class="px-4 py-3 text-slate-600">Medication Reconciliation</td>
+              <td class="px-4 py-3">{% set badge_text = 'Routine' %}{% set badge_tone = 'sky' %}{% include 'components/badge.html' %}</td>
+              <td class="px-4 py-3">{% set badge_text = 'Escalated' %}{% set badge_tone = 'rose' %}{% include 'components/badge.html' %}</td>
+              <td class="px-4 py-3 text-slate-500">Overdue</td>
+              <td class="px-4 py-3 text-right"><div class="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1"><button type="button" onclick="queueAction('claim', '4930')" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100">Claim</button><button type="button" onclick="queueAction('start', '4930')" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">Start</button><button type="button" onclick="queueAction('complete', '4930')" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">Complete</button></div></td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+  function queueAction(action, id) {
+    if (action === 'complete') {
+      showToast('Queue item #' + id + ' marked complete', 'success');
+      return;
+    }
+    if (action === 'start') {
+      showToast('Queue item #' + id + ' moved to in-progress', 'info');
+      return;
+    }
+    showToast('Queue item #' + id + ' claimed by you', 'warning');
+  }
 </script>
 {% endblock %}

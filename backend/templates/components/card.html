@@ -1,0 +1,26 @@
+{% set tone = card_tone|default('slate') %}
+{% set tone_classes = {
+  'indigo': 'border-indigo-200 bg-indigo-50',
+  'emerald': 'border-emerald-200 bg-emerald-50',
+  'amber': 'border-amber-200 bg-amber-50',
+  'rose': 'border-rose-200 bg-rose-50',
+  'slate': 'border-slate-200 bg-white'
+} %}
+{% set trend_classes = {
+  'positive': 'bg-emerald-100 text-emerald-700',
+  'negative': 'bg-rose-100 text-rose-700',
+  'neutral': 'bg-slate-100 text-slate-600'
+} %}
+
+<div class="rounded-2xl border p-5 shadow-sm {{ tone_classes[tone] if tone in tone_classes else tone_classes['slate'] }}">
+  <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ card_label|default('Metric') }}</p>
+  <div class="mt-4 flex items-end justify-between gap-3">
+    <p class="text-2xl font-semibold text-slate-800">{{ card_value|default('0') }}</p>
+    {% if card_trend %}
+      <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ trend_classes[card_trend_tone|default('neutral')] if card_trend_tone|default('neutral') in trend_classes else trend_classes['neutral'] }}">{{ card_trend }}</span>
+    {% endif %}
+  </div>
+  {% if card_subtitle %}
+    <p class="mt-3 text-sm text-slate-500">{{ card_subtitle }}</p>
+  {% endif %}
+</div>

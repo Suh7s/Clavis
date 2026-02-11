@@ -1,0 +1,12 @@
+{% set tone = badge_tone|default('slate') %}
+{% set badge_classes = {
+  'indigo': 'bg-indigo-100 text-indigo-700',
+  'emerald': 'bg-emerald-100 text-emerald-700',
+  'amber': 'bg-amber-100 text-amber-700',
+  'rose': 'bg-rose-100 text-rose-700',
+  'sky': 'bg-sky-100 text-sky-700',
+  'slate': 'bg-slate-100 text-slate-700'
+} %}
+<span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold {{ badge_classes[tone] if tone in badge_classes else badge_classes['slate'] }}">
+  {{ badge_text|default('Label') }}
+</span>

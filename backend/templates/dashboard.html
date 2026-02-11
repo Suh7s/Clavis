@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% set page_title = "Dashboard" %}
+{% set active_page = "dashboard" %}
+{% block title %}Clavis | Dashboard{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    {% set card_label = 'Total Patients' %}
+    {% set card_value = dashboard.total_patients if dashboard is defined and dashboard.total_patients is defined else '1,284' %}
+    {% set card_trend = '+8.2%' %}
+    {% set card_trend_tone = 'positive' %}
+    {% set card_subtitle = 'Compared to last week' %}
+    {% set card_tone = 'slate' %}
+    {% include 'components/card.html' %}
+
+    {% set card_label = 'Active Tasks' %}
+    {% set card_value = dashboard.active_tasks if dashboard is defined and dashboard.active_tasks is defined else '342' %}
+    {% set card_trend = '+21 tasks' %}
+    {% set card_trend_tone = 'positive' %}
+    {% set card_subtitle = 'In-flight clinical actions' %}
+    {% set card_tone = 'indigo' %}
+    {% include 'components/card.html' %}
+
+    {% set card_label = 'Overdue Tasks' %}
+    {% set card_value = dashboard.overdue_tasks if dashboard is defined and dashboard.overdue_tasks is defined else '27' %}
+    {% set card_trend = '-4 from yesterday' %}
+    {% set card_trend_tone = 'negative' %}
+    {% set card_subtitle = 'Needs immediate attention' %}
+    {% set card_tone = 'rose' %}
+    {% include 'components/card.html' %}
+
+    {% set card_label = 'SLA Compliance' %}
+    {% set card_value = dashboard.sla_compliance if dashboard is defined and dashboard.sla_compliance is defined else '93.6%' %}
+    {% set card_trend = '+1.7%' %}
+    {% set card_trend_tone = 'positive' %}
+    {% set card_subtitle = 'Rolling 24-hour adherence' %}
+    {% set card_tone = 'emerald' %}
+    {% include 'components/card.html' %}
+  </section>
+
+  <section class="grid gap-6 xl:grid-cols-3">
+    <article class="xl:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Workflow Throughput</p>
+          <h2 class="text-lg font-semibold text-slate-800">Daily Action Volume</h2>
+        </div>
+        <button class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Last 7 Days</button>
+      </div>
+
+      <div class="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <svg viewBox="0 0 720 240" class="h-56 w-full">
+          <defs>
+            <linearGradient id="lineGradient" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stop-color="#4f46e5" stop-opacity="0.45"></stop>
+              <stop offset="100%" stop-color="#4f46e5" stop-opacity="0"></stop>
+            </linearGradient>
+          </defs>
+          <rect x="0" y="0" width="720" height="240" rx="12" fill="#f8fafc"></rect>
+          <g stroke="#cbd5e1" stroke-width="1">
+            <line x1="40" y1="40" x2="680" y2="40"></line>
+            <line x1="40" y1="90" x2="680" y2="90"></line>
+            <line x1="40" y1="140" x2="680" y2="140"></line>
+            <line x1="40" y1="190" x2="680" y2="190"></line>
+          </g>
+          <path d="M40 176 L120 148 L200 152 L280 118 L360 130 L440 98 L520 106 L600 84 L680 92 L680 220 L40 220 Z" fill="url(#lineGradient)"></path>
+          <polyline points="40,176 120,148 200,152 280,118 360,130 440,98 520,106 600,84 680,92" fill="none" stroke="#4f46e5" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></polyline>
+          <g fill="#4f46e5">
+            <circle cx="40" cy="176" r="4"></circle>
+            <circle cx="120" cy="148" r="4"></circle>
+            <circle cx="200" cy="152" r="4"></circle>
+            <circle cx="280" cy="118" r="4"></circle>
+            <circle cx="360" cy="130" r="4"></circle>
+            <circle cx="440" cy="98" r="4"></circle>
+            <circle cx="520" cy="106" r="4"></circle>
+            <circle cx="600" cy="84" r="4"></circle>
+            <circle cx="680" cy="92" r="4"></circle>
+          </g>
+        </svg>
+      </div>
+    </article>
+
+    <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Case Mix</p>
+          <h2 class="text-lg font-semibold text-slate-800">Department Distribution</h2>
+        </div>
+      </div>
+
+      <div class="mt-6 flex items-center justify-center">
+        <div class="relative h-44 w-44 rounded-full bg-[conic-gradient(#4f46e5_0_42%,#14b8a6_42_68%,#f59e0b_68_84%,#e2e8f0_84_100%)]">
+          <div class="absolute inset-7 rounded-full bg-white"></div>
+          <div class="absolute inset-0 flex items-center justify-center">
+            <div class="text-center">
+              <p class="text-xs uppercase tracking-wider text-slate-400">Open</p>
+              <p class="text-xl font-semibold text-slate-800">342</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 space-y-3">
+        <div class="flex items-center justify-between text-sm">
+          <div class="flex items-center gap-2"><span class="h-2.5 w-2.5 rounded-full bg-indigo-600"></span><span class="text-slate-600">Radiology</span></div>
+          <span class="font-medium text-slate-700">42%</span>
+        </div>
+        <div class="flex items-center justify-between text-sm">
+          <div class="flex items-center gap-2"><span class="h-2.5 w-2.5 rounded-full bg-teal-500"></span><span class="text-slate-600">Laboratory</span></div>
+          <span class="font-medium text-slate-700">26%</span>
+        </div>
+        <div class="flex items-center justify-between text-sm">
+          <div class="flex items-center gap-2"><span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span><span class="text-slate-600">Pharmacy</span></div>
+          <span class="font-medium text-slate-700">16%</span>
+        </div>
+        <div class="flex items-center justify-between text-sm">
+          <div class="flex items-center gap-2"><span class="h-2.5 w-2.5 rounded-full bg-slate-300"></span><span class="text-slate-600">Other</span></div>
+          <span class="font-medium text-slate-700">16%</span>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="grid gap-6 xl:grid-cols-3">
+    <article class="xl:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Recent Activity</p>
+          <h2 class="text-lg font-semibold text-slate-800">Operational Timeline</h2>
+        </div>
+        <button class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">View All</button>
+      </div>
+
+      <div class="mt-5 space-y-3">
+        {% if activities is defined and activities %}
+          {% for activity in activities %}
+            <div class="flex items-start justify-between gap-4 rounded-xl border border-slate-200 px-4 py-3">
+              <div class="flex items-start gap-3">
+                <span class="mt-0.5 h-2.5 w-2.5 rounded-full bg-indigo-500"></span>
+                <div>
+                  <p class="text-sm font-medium text-slate-700">{{ activity.message }}</p>
+                  <p class="mt-1 text-xs text-slate-500">{{ activity.user }} · {{ activity.department if activity.department is defined else 'General' }}</p>
+                </div>
+              </div>
+              <span class="text-xs font-medium text-slate-400">{{ activity.time if activity.time is defined else activity.created_at }}</span>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="flex items-start justify-between gap-4 rounded-xl border border-slate-200 px-4 py-3">
+            <div class="flex items-start gap-3">
+              <span class="mt-0.5 h-2.5 w-2.5 rounded-full bg-rose-500"></span>
+              <div>
+                <p class="text-sm font-medium text-slate-700">SLA breach warning triggered for CT-Scan task #A-1423</p>
+                <p class="mt-1 text-xs text-slate-500">Radiology Desk · Escalation Bot</p>
+              </div>
+            </div>
+            <span class="text-xs font-medium text-slate-400">2m ago</span>
+          </div>
+          <div class="flex items-start justify-between gap-4 rounded-xl border border-slate-200 px-4 py-3">
+            <div class="flex items-start gap-3">
+              <span class="mt-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+              <div>
+                <p class="text-sm font-medium text-slate-700">Medication order completed for patient Meera Gupta</p>
+                <p class="mt-1 text-xs text-slate-500">Pharmacy · Nurse Priya</p>
+              </div>
+            </div>
+            <span class="text-xs font-medium text-slate-400">7m ago</span>
+          </div>
+          <div class="flex items-start justify-between gap-4 rounded-xl border border-slate-200 px-4 py-3">
+            <div class="flex items-start gap-3">
+              <span class="mt-0.5 h-2.5 w-2.5 rounded-full bg-indigo-500"></span>
+              <div>
+                <p class="text-sm font-medium text-slate-700">Referral dispatched from Emergency to Cardiology</p>
+                <p class="mt-1 text-xs text-slate-500">Bedside Team · Dr. N. Rao</p>
+              </div>
+            </div>
+            <span class="text-xs font-medium text-slate-400">13m ago</span>
+          </div>
+          <div class="flex items-start justify-between gap-4 rounded-xl border border-slate-200 px-4 py-3">
+            <div class="flex items-start gap-3">
+              <span class="mt-0.5 h-2.5 w-2.5 rounded-full bg-amber-500"></span>
+              <div>
+                <p class="text-sm font-medium text-slate-700">Lab turnaround delay expected for blood panel batch L-281</p>
+                <p class="mt-1 text-xs text-slate-500">Central Lab · Shift Coordinator</p>
+              </div>
+            </div>
+            <span class="text-xs font-medium text-slate-400">21m ago</span>
+          </div>
+        {% endif %}
+      </div>
+    </article>
+
+    <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Today</p>
+      <h2 class="text-lg font-semibold text-slate-800">Priority Watchlist</h2>
+      <div class="mt-5 space-y-3">
+        <div class="rounded-xl border border-rose-200 bg-rose-50 p-3">
+          <p class="text-sm font-semibold text-rose-700">8 Critical tasks</p>
+          <p class="mt-1 text-xs text-rose-600">3 are pending beyond 45 min.</p>
+        </div>
+        <div class="rounded-xl border border-amber-200 bg-amber-50 p-3">
+          <p class="text-sm font-semibold text-amber-700">12 Urgent referrals</p>
+          <p class="mt-1 text-xs text-amber-600">Cardiology queue is above baseline.</p>
+        </div>
+        <div class="rounded-xl border border-indigo-200 bg-indigo-50 p-3">
+          <p class="text-sm font-semibold text-indigo-700">Cross-team handoffs</p>
+          <p class="mt-1 text-xs text-indigo-600">18 transfers initiated this shift.</p>
+        </div>
+      </div>
+
+      <button class="mt-5 w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Open Command Center</button>
+    </article>
+  </section>
+</div>
+{% endblock %}

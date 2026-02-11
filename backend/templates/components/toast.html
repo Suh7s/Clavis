@@ -1,0 +1,34 @@
+<div id="toastRoot" class="pointer-events-none fixed right-4 top-4 z-[60] flex w-[92vw] max-w-sm flex-col gap-2"></div>
+
+<script>
+  function showToast(message, tone) {
+    const palette = {
+      info: 'border-indigo-200 bg-indigo-50 text-indigo-700',
+      success: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+      warning: 'border-amber-200 bg-amber-50 text-amber-700',
+      error: 'border-rose-200 bg-rose-50 text-rose-700'
+    };
+
+    const root = document.getElementById('toastRoot');
+    if (!root) return;
+
+    const toast = document.createElement('div');
+    toast.className = 'pointer-events-auto translate-y-2 rounded-xl border px-4 py-3 text-sm font-medium shadow-lg transition duration-200 ' + (palette[tone] || palette.info);
+    toast.innerHTML = '<div class="flex items-center justify-between gap-3"><span>' + message + '</span><button type="button" class="text-xs font-semibold uppercase tracking-wide opacity-70 hover:opacity-100">Close</button></div>';
+
+    root.appendChild(toast);
+    requestAnimationFrame(function() {
+      toast.classList.remove('translate-y-2');
+    });
+
+    const removeToast = function() {
+      toast.classList.add('translate-y-2', 'opacity-0');
+      setTimeout(function() {
+        toast.remove();
+      }, 180);
+    };
+
+    toast.querySelector('button').addEventListener('click', removeToast);
+    setTimeout(removeToast, 4200);
+  }
+</script>

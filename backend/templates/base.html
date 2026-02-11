@@ -1,115 +1,70 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full bg-slate-100">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}Clavis{% endblock %}</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body { font-family: 'Inter', system-ui, sans-serif; }
-    .badge { @apply text-xs font-semibold px-2 py-0.5 rounded-full; }
-  </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
-  <nav class="bg-white border-b border-gray-200 px-6 py-4">
-    <div class="max-w-5xl mx-auto flex items-center justify-between gap-4">
-      <a href="/" class="text-xl font-bold text-gray-900 tracking-tight shrink-0">Clavis</a>
-      <div class="flex items-center gap-3 text-sm flex-wrap justify-end">
-        <a id="statusBoardLink" href="/status-board/view" class="text-gray-600 hover:text-gray-900">Status Board</a>
-        <span class="text-gray-300">|</span>
-        <span id="authUser" class="text-gray-500">Not signed in</span>
-        <button id="authButton" onclick="logout()" class="hidden border border-gray-300 rounded px-2 py-1 text-gray-600 hover:bg-gray-50">Logout</button>
-      </div>
+<body class="h-full bg-slate-100 text-slate-800 antialiased">
+  <div class="min-h-screen">
+    <div id="sidebarBackdrop" class="fixed inset-0 z-30 hidden bg-slate-900/40 lg:hidden" onclick="closeSidebar()"></div>
+
+    <aside id="sidenav" class="fixed inset-y-0 left-0 z-40 w-72 -translate-x-full transform transition duration-300 ease-out lg:translate-x-0">
+      {% include "components/sidenav.html" %}
+    </aside>
+
+    <div class="min-h-screen lg:pl-72">
+      {% include "components/navbar.html" %}
+
+      <main class="px-4 pb-8 pt-5 sm:px-6 lg:px-8 lg:pt-6">
+        {% block content %}{% endblock %}
+      </main>
     </div>
-  </nav>
-  <main class="max-w-5xl mx-auto px-6 py-8">
-    {% block content %}{% endblock %}
-  </main>
+  </div>
+
+  {% include "components/toast.html" %}
+
   <script>
-    function getAuthToken() {
-      return sessionStorage.getItem('clavis_token');
+    const sidebarEl = document.getElementById('sidenav');
+    const sidebarBackdropEl = document.getElementById('sidebarBackdrop');
+    const userMenuEl = document.getElementById('userMenu');
+
+    function openSidebar() {
+      if (!sidebarEl || !sidebarBackdropEl) return;
+      sidebarEl.classList.remove('-translate-x-full');
+      sidebarBackdropEl.classList.remove('hidden');
     }
 
-    function getCurrentUser() {
-      const raw = sessionStorage.getItem('clavis_user');
-      if (!raw) return null;
-      try { return JSON.parse(raw); } catch { return null; }
+    function closeSidebar() {
+      if (!sidebarEl || !sidebarBackdropEl) return;
+      sidebarEl.classList.add('-translate-x-full');
+      sidebarBackdropEl.classList.add('hidden');
     }
 
-    function setAuthSession(token, user) {
-      sessionStorage.setItem('clavis_token', token);
-      sessionStorage.setItem('clavis_user', JSON.stringify(user));
+    function toggleUserMenu() {
+      if (!userMenuEl) return;
+      userMenuEl.classList.toggle('hidden');
     }
 
-    function clearAuthSession() {
-      sessionStorage.removeItem('clavis_token');
-      sessionStorage.removeItem('clavis_user');
-    }
-
-    function logout() {
-      clearAuthSession();
-      location.href = '/login';
-    }
-
-    function updateAuthUI() {
-      const user = getCurrentUser();
-      const userEl = document.getElementById('authUser');
-      const buttonEl = document.getElementById('authButton');
-      if (!user) {
-        userEl.textContent = 'Not signed in';
-        buttonEl.classList.add('hidden');
-        document.getElementById('statusBoardLink').classList.add('hidden');
-        return;
+    document.addEventListener('click', function(event) {
+      const menuButton = document.getElementById('userMenuButton');
+      if (!menuButton || !userMenuEl) return;
+      if (!menuButton.contains(event.target) && !userMenuEl.contains(event.target)) {
+        userMenuEl.classList.add('hidden');
       }
-      userEl.textContent = `${user.name} (${(user.role || '').toUpperCase()})`;
-      buttonEl.classList.remove('hidden');
-      document.getElementById('statusBoardLink').classList.remove('hidden');
-    }
+    });
 
-    function isPublicPath(pathname) {
-      return pathname === '/login';
-    }
-
-    function shouldAttachAuth(url) {
-      return !url.startsWith('/auth/login') &&
-             !url.startsWith('/api/v1/auth/login') &&
-             !url.startsWith('/health');
-    }
-
-    const __nativeFetch = window.fetch.bind(window);
-    window.fetch = async function(input, init = {}) {
-      const token = getAuthToken();
-      let url = '';
-      if (typeof input === 'string') {
-        url = input;
-      } else if (input && typeof input.url === 'string') {
-        url = input.url;
+    window.addEventListener('resize', function() {
+      if (window.innerWidth >= 1024) {
+        if (sidebarBackdropEl) sidebarBackdropEl.classList.add('hidden');
+        if (sidebarEl) sidebarEl.classList.remove('-translate-x-full');
+      } else if (sidebarEl) {
+        sidebarEl.classList.add('-translate-x-full');
       }
-
-      const isSameOrigin = !url || url.startsWith('/') || url.startsWith(window.location.origin);
-      if (token && isSameOrigin && shouldAttachAuth(url.replace(window.location.origin, ''))) {
-        const headers = new Headers(init.headers || {});
-        if (!headers.has('Authorization')) {
-          headers.set('Authorization', `Bearer ${token}`);
-        }
-        init.headers = headers;
-      }
-
-      const response = await __nativeFetch(input, init);
-      if (response.status === 401 && !isPublicPath(window.location.pathname)) {
-        clearAuthSession();
-        location.href = '/login';
-      }
-      return response;
-    };
-
-    document.addEventListener('DOMContentLoaded', () => {
-      if (!isPublicPath(window.location.pathname) && !getAuthToken()) {
-        location.href = '/login';
-        return;
-      }
-      updateAuthUI();
     });
   </script>
+
+  {% block page_scripts %}{% endblock %}
 </body>
 </html>

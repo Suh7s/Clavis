@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+{% set page_title = "Patient Detail" %}
+{% set active_page = "patients" %}
+{% block title %}Clavis | Patient Detail{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <a href="/patients/view" class="text-sm font-medium text-indigo-600 hover:text-indigo-700">← Back to Patients</a>
+      <h2 class="mt-2 text-2xl font-semibold text-slate-800">{{ patient.name if patient is defined and patient.name is defined else 'Meera Gupta' }}</h2>
+      <p class="mt-1 text-sm text-slate-500">MRN {{ patient.mrn if patient is defined and patient.mrn is defined else 'MRN-10241' }} · Bed {{ patient.bed if patient is defined and patient.bed is defined else 'C-12' }}</p>
+    </div>
+    <div class="flex items-center gap-2">
+      {% set badge_text = patient.status if patient is defined and patient.status is defined else 'Observation' %}
+      {% set badge_tone = 'amber' %}
+      {% include 'components/badge.html' %}
+      {% set badge_text = patient.priority if patient is defined and patient.priority is defined else 'Urgent' %}
+      {% set badge_tone = 'rose' %}
+      {% include 'components/badge.html' %}
+    </div>
+  </div>
+
+  <div class="grid gap-6 xl:grid-cols-12">
+    <aside class="space-y-6 xl:col-span-3">
+      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Patient Summary</p>
+        <dl class="mt-4 space-y-3 text-sm">
+          <div class="flex items-center justify-between">
+            <dt class="text-slate-500">Age</dt>
+            <dd class="font-medium text-slate-700">{{ patient.age if patient is defined and patient.age is defined else 54 }}</dd>
+          </div>
+          <div class="flex items-center justify-between">
+            <dt class="text-slate-500">Gender</dt>
+            <dd class="font-medium text-slate-700">{{ patient.gender if patient is defined and patient.gender is defined else 'Female' }}</dd>
+          </div>
+          <div class="flex items-center justify-between">
+            <dt class="text-slate-500">Primary Dept</dt>
+            <dd class="font-medium text-slate-700">{{ patient.department if patient is defined and patient.department is defined else 'Cardiology' }}</dd>
+          </div>
+          <div class="flex items-center justify-between">
+            <dt class="text-slate-500">Attending</dt>
+            <dd class="font-medium text-slate-700">{{ patient.attending if patient is defined and patient.attending is defined else 'Dr. N. Rao' }}</dd>
+          </div>
+          <div class="flex items-center justify-between">
+            <dt class="text-slate-500">Admitted</dt>
+            <dd class="font-medium text-slate-700">{{ patient.admitted_at if patient is defined and patient.admitted_at is defined else '11 Feb, 09:20' }}</dd>
+          </div>
+        </dl>
+      </article>
+
+      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Care Team</p>
+        <div class="mt-4 space-y-3">
+          <div class="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2">
+            <div>
+              <p class="text-sm font-medium text-slate-700">Dr. N. Rao</p>
+              <p class="text-xs text-slate-500">Consultant</p>
+            </div>
+            <span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+          </div>
+          <div class="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2">
+            <div>
+              <p class="text-sm font-medium text-slate-700">Nurse Priya</p>
+              <p class="text-xs text-slate-500">Assigned Nurse</p>
+            </div>
+            <span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+          </div>
+          <div class="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2">
+            <div>
+              <p class="text-sm font-medium text-slate-700">Lab Desk</p>
+              <p class="text-xs text-slate-500">Pending Support</p>
+            </div>
+            <span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span>
+          </div>
+        </div>
+      </article>
+    </aside>
+
+    <section class="space-y-6 xl:col-span-6">
+      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Timeline</p>
+            <h3 class="text-lg font-semibold text-slate-800">Clinical Events</h3>
+          </div>
+          <button class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Refresh</button>
+        </div>
+
+        <div class="mt-5 space-y-4">
+          {% if timeline is defined and timeline %}
+            {% for event in timeline %}
+              <div class="relative pl-6">
+                <span class="absolute left-0 top-1 h-3 w-3 rounded-full bg-indigo-500"></span>
+                <div class="rounded-xl border border-slate-200 p-3">
+                  <div class="flex items-center justify-between gap-3">
+                    <p class="text-sm font-medium text-slate-700">{{ event.title }}</p>
+                    <p class="text-xs text-slate-400">{{ event.time if event.time is defined else event.created_at }}</p>
+                  </div>
+                  <p class="mt-1 text-xs text-slate-500">{{ event.note if event.note is defined else event.description }}</p>
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="relative pl-6">
+              <span class="absolute left-0 top-1 h-3 w-3 rounded-full bg-indigo-500"></span>
+              <div class="rounded-xl border border-slate-200 p-3">
+                <div class="flex items-center justify-between gap-3"><p class="text-sm font-medium text-slate-700">ECG completed and attached</p><p class="text-xs text-slate-400">10:46</p></div>
+                <p class="mt-1 text-xs text-slate-500">Result uploaded by cardiology technician.</p>
+              </div>
+            </div>
+            <div class="relative pl-6">
+              <span class="absolute left-0 top-1 h-3 w-3 rounded-full bg-amber-500"></span>
+              <div class="rounded-xl border border-slate-200 p-3">
+                <div class="flex items-center justify-between gap-3"><p class="text-sm font-medium text-slate-700">Troponin test requested</p><p class="text-xs text-slate-400">10:18</p></div>
+                <p class="mt-1 text-xs text-slate-500">Lab pickup pending in emergency block.</p>
+              </div>
+            </div>
+            <div class="relative pl-6">
+              <span class="absolute left-0 top-1 h-3 w-3 rounded-full bg-emerald-500"></span>
+              <div class="rounded-xl border border-slate-200 p-3">
+                <div class="flex items-center justify-between gap-3"><p class="text-sm font-medium text-slate-700">Initial triage complete</p><p class="text-xs text-slate-400">09:27</p></div>
+                <p class="mt-1 text-xs text-slate-500">Patient stabilized and assigned to Cardiology workflow.</p>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      </article>
+
+      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Actions</p>
+            <h3 class="text-lg font-semibold text-slate-800">Current Clinical Tasks</h3>
+          </div>
+        </div>
+
+        <div class="mt-5 space-y-3">
+          {% if actions is defined and actions %}
+            {% for action in actions %}
+              <div class="rounded-xl border border-slate-200 p-4">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p class="text-sm font-semibold text-slate-800">{{ action.title }}</p>
+                    <p class="mt-1 text-xs text-slate-500">{{ action.department if action.department is defined else 'Department' }} · Assigned to {{ action.owner if action.owner is defined else 'Unassigned' }}</p>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    {% set badge_text = action.state|default('In Progress') %}
+                    {% if badge_text|lower in ['blocked', 'overdue', 'critical'] %}
+                      {% set badge_tone = 'rose' %}
+                    {% elif badge_text|lower in ['queued', 'pending'] %}
+                      {% set badge_tone = 'amber' %}
+                    {% else %}
+                      {% set badge_tone = 'emerald' %}
+                    {% endif %}
+                    {% include 'components/badge.html' %}
+
+                    {% set badge_text = action.priority|default('Urgent') %}
+                    {% if badge_text|lower == 'critical' %}
+                      {% set badge_tone = 'rose' %}
+                    {% elif badge_text|lower == 'urgent' %}
+                      {% set badge_tone = 'amber' %}
+                    {% else %}
+                      {% set badge_tone = 'sky' %}
+                    {% endif %}
+                    {% include 'components/badge.html' %}
+                  </div>
+                </div>
+                <div class="mt-4 flex flex-wrap gap-2">
+                  <button type="button" onclick="showToast('Transition requested', 'info')" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Transition</button>
+                  <button type="button" onclick="showToast('Action note added', 'success')" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Add Note</button>
+                  <button type="button" onclick="showToast('Escalation sent to supervisor', 'warning')" class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Escalate</button>
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="rounded-xl border border-slate-200 p-4">
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p class="text-sm font-semibold text-slate-800">Troponin Blood Panel</p>
+                  <p class="mt-1 text-xs text-slate-500">Laboratory · Assigned to Lab Desk 2</p>
+                </div>
+                <div class="flex items-center gap-2">{% set badge_text = 'Queued' %}{% set badge_tone = 'amber' %}{% include 'components/badge.html' %}{% set badge_text = 'Urgent' %}{% set badge_tone = 'amber' %}{% include 'components/badge.html' %}</div>
+              </div>
+              <div class="mt-4 flex flex-wrap gap-2">
+                <button type="button" onclick="showToast('Transition requested', 'info')" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Transition</button>
+                <button type="button" onclick="showToast('Action note added', 'success')" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Add Note</button>
+                <button type="button" onclick="showToast('Escalation sent to supervisor', 'warning')" class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Escalate</button>
+              </div>
+            </div>
+            <div class="rounded-xl border border-slate-200 p-4">
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p class="text-sm font-semibold text-slate-800">ECG Interpretation</p>
+                  <p class="mt-1 text-xs text-slate-500">Cardiology · Assigned to Dr. N. Rao</p>
+                </div>
+                <div class="flex items-center gap-2">{% set badge_text = 'In Progress' %}{% set badge_tone = 'emerald' %}{% include 'components/badge.html' %}{% set badge_text = 'Critical' %}{% set badge_tone = 'rose' %}{% include 'components/badge.html' %}</div>
+              </div>
+              <div class="mt-4 flex flex-wrap gap-2">
+                <button type="button" onclick="showToast('Transition requested', 'info')" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Transition</button>
+                <button type="button" onclick="showToast('Action note added', 'success')" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Add Note</button>
+                <button type="button" onclick="showToast('Escalation sent to supervisor', 'warning')" class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Escalate</button>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      </article>
+    </section>
+
+    <aside class="space-y-6 xl:col-span-3">
+      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Create Action</p>
+        <h3 class="text-lg font-semibold text-slate-800">New Clinical Task</h3>
+        <form class="mt-4 space-y-3" onsubmit="handleActionCreate(event)">
+          <div>
+            <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Action Title</label>
+            <input type="text" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100" placeholder="e.g., Echo review" />
+          </div>
+          <div>
+            <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Department</label>
+            <select class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100">
+              <option>Cardiology</option>
+              <option>Laboratory</option>
+              <option>Radiology</option>
+              <option>Pharmacy</option>
+            </select>
+          </div>
+          <div>
+            <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Priority</label>
+            <select class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100">
+              <option>Routine</option>
+              <option>Urgent</option>
+              <option>Critical</option>
+            </select>
+          </div>
+          <button type="submit" class="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Create Action</button>
+        </form>
+      </article>
+
+      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Transitions</p>
+        <h3 class="text-lg font-semibold text-slate-800">Move Action State</h3>
+        <form class="mt-4 space-y-3" onsubmit="handleTransition(event)">
+          <div>
+            <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Action</label>
+            <select class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100">
+              <option>Troponin Blood Panel</option>
+              <option>ECG Interpretation</option>
+              <option>Medication Verification</option>
+            </select>
+          </div>
+          <div>
+            <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Next State</label>
+            <select class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100">
+              <option>In Progress</option>
+              <option>Completed</option>
+              <option>Escalated</option>
+            </select>
+          </div>
+          <button type="submit" class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Apply Transition</button>
+        </form>
+      </article>
+    </aside>
+  </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+  function handleActionCreate(event) {
+    event.preventDefault();
+    showToast('New action created for patient timeline', 'success');
+    event.target.reset();
+  }
+
+  function handleTransition(event) {
+    event.preventDefault();
+    showToast('Action transitioned successfully', 'info');
+    event.target.reset();
+  }
+
+  (function setupPatientRealtime() {
+    const patientId = '{{ patient.id if patient is defined and patient.id is defined else patient_id|default("") }}';
+    const explicitWsUrl = '{{ ws_url if ws_url is defined else "" }}';
+    const wsEndpoint = explicitWsUrl || ((window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/ws');
+
+    try {
+      const socket = new WebSocket(wsEndpoint);
+      socket.onmessage = function(event) {
+        let payload;
+        try {
+          payload = JSON.parse(event.data);
+        } catch (_error) {
+          return;
+        }
+
+        if (payload && payload.patient_id && patientId && String(payload.patient_id) !== String(patientId)) {
+          return;
+        }
+
+        if (payload && payload.message) {
+          const tone = payload.level === 'error' ? 'error' : payload.level === 'warning' ? 'warning' : 'info';
+          showToast(payload.message, tone);
+        }
+      };
+    } catch (_error) {
+      showToast('Realtime channel unavailable in this environment', 'warning');
+    }
+  })();
+</script>
+{% endblock %}

@@ -7,7 +7,12 @@ from sqlmodel import SQLModel, Session, create_engine
 DB_FILE = Path(os.getenv("CLAVIS_DB_FILE", str(Path(__file__).resolve().parent / "clavis.db")))
 DATABASE_URL = f"sqlite:///{DB_FILE}"
 
-engine = create_engine(DATABASE_URL, echo=False)
+connect_args: dict[str, object] = {}
+if DATABASE_URL.startswith("sqlite:///"):
+    # FastAPI serves requests across threads; SQLite needs this for stable cross-thread access.
+    connect_args = {"check_same_thread": False, "timeout": 30}
+
+engine = create_engine(DATABASE_URL, echo=False, connect_args=connect_args)
 
 
 REQUIRED_COLUMNS = {
@@ -21,7 +26,7 @@ REQUIRED_COLUMNS = {
         "is_active",
         "created_at",
     },
-    "patient": {"id", "name", "age", "gender", "created_at"},
+    "patient": {"id", "name", "age", "gender", "blood_group", "admission_date", "ward", "primary_doctor_id", "is_active", "admission_status", "discharge_date", "discharge_notes", "created_at"},
     "clinicalaction": {
         "id",
         "patient_id",
@@ -36,6 +41,7 @@ REQUIRED_COLUMNS = {
         "department",
         "sla_deadline",
         "created_at",
+        "updated_at",
     },
     "actionevent": {
         "id",
@@ -56,6 +62,36 @@ REQUIRED_COLUMNS = {
         "sla_routine_minutes",
         "sla_urgent_minutes",
         "sla_critical_minutes",
+        "created_at",
+    },
+    "patientnote": {
+        "id",
+        "patient_id",
+        "author_id",
+        "note_type",
+        "content",
+        "created_at",
+    },
+    "patienttransfer": {
+        "id",
+        "patient_id",
+        "from_doctor_id",
+        "to_doctor_id",
+        "from_ward",
+        "to_ward",
+        "reason",
+        "transferred_by",
+        "created_at",
+    },
+    "attachment": {
+        "id",
+        "patient_id",
+        "action_id",
+        "filename",
+        "file_type",
+        "file_size",
+        "stored_path",
+        "created_by",
         "created_at",
     },
 }

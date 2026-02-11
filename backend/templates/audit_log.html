@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% set page_title = "Audit Log" %}
+{% set active_page = "audit_log" %}
+{% block title %}Clavis | Audit Log{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Governance Trail</p>
+        <h2 class="text-2xl font-semibold text-slate-800">System Audit Events</h2>
+      </div>
+      <button class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Export Log</button>
+    </div>
+
+    <div class="mt-4 grid gap-3 md:grid-cols-5">
+      <div>
+        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Date</label>
+        <input type="date" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+      </div>
+      <div>
+        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Action Type</label>
+        <select class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100">
+          <option>All</option>
+          <option>Transition</option>
+          <option>Create</option>
+          <option>Update</option>
+          <option>Escalation</option>
+        </select>
+      </div>
+      <div>
+        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Actor</label>
+        <input type="text" placeholder="User name" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+      </div>
+      <div>
+        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Department</label>
+        <select class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100">
+          <option>All</option>
+          <option>Emergency</option>
+          <option>Radiology</option>
+          <option>Laboratory</option>
+          <option>Pharmacy</option>
+        </select>
+      </div>
+      <div class="flex items-end gap-2">
+        <button class="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Apply</button>
+        <button class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Reset</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-200 text-sm">
+        <thead class="bg-slate-50">
+          <tr>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Timestamp</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Actor</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Action</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Entity</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Department</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Outcome</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% if audit_events is defined and audit_events %}
+            {% for event in audit_events %}
+              <tr class="hover:bg-slate-50/80">
+                <td class="px-4 py-3 text-slate-500">{{ event.timestamp }}</td>
+                <td class="px-4 py-3 font-medium text-slate-700">{{ event.actor }}</td>
+                <td class="px-4 py-3 text-slate-600">{{ event.action }}</td>
+                <td class="px-4 py-3 text-slate-600">{{ event.entity }}</td>
+                <td class="px-4 py-3 text-slate-600">{{ event.department }}</td>
+                <td class="px-4 py-3">
+                  {% set outcome = event.outcome|default('Success') %}
+                  {% set badge_text = outcome %}
+                  {% if outcome|lower in ['failed', 'error', 'blocked'] %}
+                    {% set badge_tone = 'rose' %}
+                  {% elif outcome|lower in ['warning', 'escalated'] %}
+                    {% set badge_tone = 'amber' %}
+                  {% else %}
+                    {% set badge_tone = 'emerald' %}
+                  {% endif %}
+                  {% include 'components/badge.html' %}
+                </td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr class="hover:bg-slate-50/80"><td class="px-4 py-3 text-slate-500">2026-02-11 10:42:18</td><td class="px-4 py-3 font-medium text-slate-700">Dr. N. Rao</td><td class="px-4 py-3 text-slate-600">TRANSITION_ACTION</td><td class="px-4 py-3 text-slate-600">Action A-1423</td><td class="px-4 py-3 text-slate-600">Cardiology</td><td class="px-4 py-3">{% set badge_text = 'Success' %}{% set badge_tone = 'emerald' %}{% include 'components/badge.html' %}</td></tr>
+            <tr class="hover:bg-slate-50/80"><td class="px-4 py-3 text-slate-500">2026-02-11 10:39:03</td><td class="px-4 py-3 font-medium text-slate-700">Queue Bot</td><td class="px-4 py-3 text-slate-600">SLA_ALERT</td><td class="px-4 py-3 text-slate-600">Action A-1418</td><td class="px-4 py-3 text-slate-600">Radiology</td><td class="px-4 py-3">{% set badge_text = 'Warning' %}{% set badge_tone = 'amber' %}{% include 'components/badge.html' %}</td></tr>
+            <tr class="hover:bg-slate-50/80"><td class="px-4 py-3 text-slate-500">2026-02-11 10:34:47</td><td class="px-4 py-3 font-medium text-slate-700">Nurse Priya</td><td class="px-4 py-3 text-slate-600">CREATE_ACTION</td><td class="px-4 py-3 text-slate-600">Patient MRN-10241</td><td class="px-4 py-3 text-slate-600">Emergency</td><td class="px-4 py-3">{% set badge_text = 'Success' %}{% set badge_tone = 'emerald' %}{% include 'components/badge.html' %}</td></tr>
+            <tr class="hover:bg-slate-50/80"><td class="px-4 py-3 text-slate-500">2026-02-11 10:20:06</td><td class="px-4 py-3 font-medium text-slate-700">Lab Desk</td><td class="px-4 py-3 text-slate-600">UPDATE_RESULT</td><td class="px-4 py-3 text-slate-600">Test L-7289</td><td class="px-4 py-3 text-slate-600">Laboratory</td><td class="px-4 py-3">{% set badge_text = 'Success' %}{% set badge_tone = 'emerald' %}{% include 'components/badge.html' %}</td></tr>
+            <tr class="hover:bg-slate-50/80"><td class="px-4 py-3 text-slate-500">2026-02-11 10:13:58</td><td class="px-4 py-3 font-medium text-slate-700">System</td><td class="px-4 py-3 text-slate-600">AUTO_ASSIGN</td><td class="px-4 py-3 text-slate-600">Queue Q-4925</td><td class="px-4 py-3 text-slate-600">Emergency</td><td class="px-4 py-3">{% set badge_text = 'Failed' %}{% set badge_tone = 'rose' %}{% include 'components/badge.html' %}</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <p class="text-sm text-slate-500">Showing 1 to 20 of {{ audit_total if audit_total is defined else 2481 }} events</p>
+      <div class="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
+        <button class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100">Prev</button>
+        <button class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white">1</button>
+        <button class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100">2</button>
+        <button class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100">3</button>
+        <button class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100">Next</button>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

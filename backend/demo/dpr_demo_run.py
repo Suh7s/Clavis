@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+import os
 from pathlib import Path
 import sys
 
@@ -10,6 +11,8 @@ from sqlmodel import Session, select
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+os.environ.setdefault("CLAVIS_ENABLE_DEMO_RESET", "1")
 
 from database import engine  # noqa: E402
 from main import app  # noqa: E402
@@ -55,7 +58,8 @@ def main():
 
     patients_resp = client.get("/patients", headers=doctor_headers)
     assert_status(patients_resp, 200, "List patients")
-    patients = patients_resp.json()
+    patients_data = patients_resp.json()
+    patients = patients_data.get("patients", patients_data) if isinstance(patients_data, dict) else patients_data
     if patients:
         patient_id = patients[0]["id"]
     else:

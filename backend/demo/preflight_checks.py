@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 import sys
 
@@ -9,6 +10,8 @@ from sqlmodel import Session, select
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+os.environ.setdefault("CLAVIS_ENABLE_DEMO_RESET", "1")
 
 from database import engine  # noqa: E402
 from main import app  # noqa: E402
@@ -51,7 +54,9 @@ def run():
 
     list_patients = client.get("/patients", headers=doctor_headers)
     assert_status(list_patients, 200, "List patients for doctor")
-    if patient_id not in {item["id"] for item in list_patients.json()}:
+    patients_data = list_patients.json()
+    patient_list = patients_data.get("patients", patients_data) if isinstance(patients_data, dict) else patients_data
+    if patient_id not in {item["id"] for item in patient_list}:
         raise RuntimeError("Doctor did not see nurse-created patient")
     print("[OK] Shared patient visibility")
 

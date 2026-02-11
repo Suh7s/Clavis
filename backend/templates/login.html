@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 {% block title %}Clavis — Login{% endblock %}
 {% block content %}
-<div class="max-w-md mx-auto bg-white border rounded-xl p-6">
-  <h1 class="text-2xl font-bold text-gray-800 mb-1">Sign In</h1>
-  <p class="text-sm text-gray-500 mb-5">Use a demo role to run the DPR flow.</p>
+<div class="max-w-md mx-auto bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-6">
+  <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-1">Sign In</h1>
+  <p class="text-sm text-gray-500 dark:text-gray-400 mb-5">Use a demo role to run the DPR flow.</p>
 
   <form id="loginForm" class="space-y-3">
     <div>
-      <label class="block text-xs text-gray-500 mb-1">Email</label>
-      <input id="email" required class="w-full border rounded px-3 py-2 text-sm" placeholder="doctor@clavis.local">
+      <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Email</label>
+      <input id="email" required class="w-full border dark:border-gray-600 rounded px-3 py-2 text-sm dark:bg-gray-700 dark:text-gray-100" placeholder="doctor@clavis.local">
     </div>
     <div>
-      <label class="block text-xs text-gray-500 mb-1">Password</label>
-      <input id="password" type="password" required class="w-full border rounded px-3 py-2 text-sm" placeholder="••••••••">
+      <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Password</label>
+      <input id="password" type="password" required class="w-full border dark:border-gray-600 rounded px-3 py-2 text-sm dark:bg-gray-700 dark:text-gray-100" placeholder="••••••••">
     </div>
     <button type="submit" class="w-full bg-blue-600 text-white rounded px-3 py-2 text-sm hover:bg-blue-700">
       Login
@@ -21,9 +21,9 @@
   </form>
 </div>
 
-<div class="max-w-md mx-auto mt-4 bg-white border rounded-xl p-4">
-  <h2 class="font-semibold text-gray-700 mb-2">Demo Credentials</h2>
-  <div class="text-sm text-gray-600 space-y-1">
+<div class="max-w-md mx-auto mt-4 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-4">
+  <h2 class="font-semibold text-gray-700 dark:text-gray-200 mb-2">Demo Credentials</h2>
+  <div class="text-sm text-gray-600 dark:text-gray-300 space-y-1">
     <div>Doctor: <code>doctor@clavis.local / doctor123</code></div>
     <div>Nurse: <code>nurse@clavis.local / nurse123</code></div>
     <div>Pharmacy: <code>pharmacy@clavis.local / pharmacy123</code></div>
@@ -34,18 +34,6 @@
 </div>
 
 <script>
-function homeForRole(role) {
-  const routes = {
-    doctor: '/',
-    admin: '/',
-    nurse: '/departments/Nursing/view',
-    pharmacist: '/departments/Pharmacy/view',
-    lab_tech: '/departments/Laboratory/view',
-    radiologist: '/departments/Radiology/view',
-  };
-  return routes[role] || '/';
-}
-
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const errorEl = document.getElementById('error');
@@ -63,11 +51,13 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
   if (!res.ok) {
     errorEl.textContent = 'Invalid credentials';
     errorEl.classList.remove('hidden');
+    showToast('Login failed', 'error');
     return;
   }
 
   const payload = await res.json();
   setAuthSession(payload.access_token, payload.user);
+  showToast('Signed in', 'success', 1600);
   location.href = homeForRole(payload.user?.role);
 });
 </script>
