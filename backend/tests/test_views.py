@@ -23,4 +23,7 @@ def test_base_layout_includes_theme_toggle_and_shortcut_hooks(client):
     assert response.status_code == 200
     assert 'id="themeToggleButton"' in response.text
     assert "function toggleDarkMode()" in response.text
+    assert "darkMode: 'class'" in response.text
+    assert "--font-body:" in response.text
+    assert "body.public-route #sidenav" in response.text
     assert "Ctrl/Cmd+K search" in response.text
