@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+{% block title %}Clavis — Patient #{{ patient_id }}{% endblock %}
+{% block content %}
+
+<a href="/" class="text-sm text-blue-600 hover:underline mb-4 inline-block">&larr; All Patients</a>
+
+<div id="patientHeader" class="mb-6"></div>
+
+<div id="summary" class="grid grid-cols-5 gap-3 mb-6"></div>
+
+<div class="flex items-center justify-between mb-4">
+  <h2 class="text-lg font-bold text-gray-800">Clinical Actions</h2>
+  <button onclick="document.getElementById('newActionForm').classList.toggle('hidden')"
+    class="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700">
+    + New Action
+  </button>
+</div>
+
+<div id="newActionForm" class="hidden mb-6 bg-white border rounded-lg p-4">
+  <h3 class="font-semibold text-gray-700 mb-3">Create Action</h3>
+  <form onsubmit="createAction(event)" class="flex gap-3 items-end flex-wrap">
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">Type</label>
+      <select id="aType" class="border rounded px-3 py-1.5 text-sm" onchange="onTypeChange()">
+        <option value="DIAGNOSTIC">Diagnostic</option>
+        <option value="MEDICATION">Medication</option>
+        <option value="REFERRAL">Referral</option>
+        <option value="CARE_INSTRUCTION">Care Instruction</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">Priority</label>
+      <select id="aPriority" class="border rounded px-3 py-1.5 text-sm">
+        <option value="ROUTINE">Routine</option>
+        <option value="URGENT">Urgent</option>
+        <option value="CRITICAL">Critical</option>
+      </select>
+    </div>
+    <button type="submit" class="bg-green-600 text-white text-sm px-4 py-1.5 rounded hover:bg-green-700">Create</button>
+  </form>
+</div>
+
+<div id="actionList" class="space-y-3 mb-8"></div>
+
+<h2 class="text-lg font-bold text-gray-800 mb-3">Event Timeline</h2>
+<div id="timeline" class="space-y-2 mb-8"></div>
+
+<div id="wsStatus" class="fixed bottom-4 right-4 text-xs px-3 py-1.5 rounded-full bg-gray-200 text-gray-500"></div>
+
+<script>
+const PID = {{ patient_id }};
+
+const TRANSITIONS = {
+  DIAGNOSTIC:        { REQUESTED: ['SAMPLE_COLLECTED'], SAMPLE_COLLECTED: ['PROCESSING'], PROCESSING: ['COMPLETED'] },
+  MEDICATION:        { PRESCRIBED: ['DISPENSED'], DISPENSED: ['ADMINISTERED'] },
+  REFERRAL:          { INITIATED: ['ACKNOWLEDGED'], ACKNOWLEDGED: ['REVIEWED'], REVIEWED: ['CLOSED'] },
+  CARE_INSTRUCTION:  { ISSUED: ['ACKNOWLEDGED'], ACKNOWLEDGED: ['IN_PROGRESS'], IN_PROGRESS: ['COMPLETED'] },
+};
+
+let customTypes = [];  // loaded from API
+let customTransitions = {};  // cat_id -> { state: [next] }
+
+const PRIORITY_COLORS = { ROUTINE: 'bg-gray-100 text-gray-600', URGENT: 'bg-amber-100 text-amber-700', CRITICAL: 'bg-red-100 text-red-700' };
+const STATE_COLORS = { COMPLETED: 'bg-green-100 text-green-700', ADMINISTERED: 'bg-green-100 text-green-700', CLOSED: 'bg-green-100 text-green-700' };
+
+function stateBadge(state, terminalState) {
+  const isTerminal = terminalState ? state === terminalState : !!STATE_COLORS[state];
+  const color = isTerminal ? 'bg-green-100 text-green-700' : (STATE_COLORS[state] || 'bg-blue-100 text-blue-700');
+  return `<span class="text-xs font-semibold px-2 py-0.5 rounded-full ${color}">${state}</span>`;
+}
+
+function priorityBadge(p) {
+  return `<span class="text-xs font-semibold px-2 py-0.5 rounded-full ${PRIORITY_COLORS[p]}">${p}</span>`;
+}
+
+function getNextStates(a) {
+  if (a.custom_action_type_id) {
+    const ct = customTransitions[a.custom_action_type_id];
+    return ct ? (ct[a.current_state] || []) : [];
+  }
+  return (TRANSITIONS[a.action_type] || {})[a.current_state] || [];
+}
+
+function getTerminalState(a) {
+  if (a.custom_action_type_id) {
+    const ct = customTypes.find(c => c.id === a.custom_action_type_id);
+    return ct ? ct.terminal_state : null;
+  }
+  return null;
+}
+
+function getDisplayName(a) {
+  if (a.custom_type_name) return a.custom_type_name;
+  return (a.action_type || '').replace('_', ' ');
+}
+
+async function loadCustomTypes() {
+  const res = await fetch('/custom-action-types');
+  customTypes = await res.json();
+  customTransitions = {};
+  for (const ct of customTypes) {
+    const trans = {};
+    for (let i = 0; i < ct.states.length - 1; i++) {
+      trans[ct.states[i]] = [ct.states[i + 1]];
+    }
+    customTransitions[ct.id] = trans;
+  }
+  updateTypeDropdown();
+}
+
+function updateTypeDropdown() {
+  const sel = document.getElementById('aType');
+  // Remove old custom options
+  sel.querySelectorAll('option[data-custom]').forEach(o => o.remove());
+  for (const ct of customTypes) {
+    const opt = document.createElement('option');
+    opt.value = `custom:${ct.id}`;
+    opt.textContent = ct.name;
+    opt.setAttribute('data-custom', 'true');
+    sel.appendChild(opt);
+  }
+}
+
+function onTypeChange() {}
+
+async function loadPatient() {
+  const res = await fetch(`/patients/${PID}`);
+  const data = await res.json();
+
+  document.getElementById('patientHeader').innerHTML = `
+    <h1 class="text-2xl font-bold text-gray-800">${data.name}</h1>
+    <p class="text-sm text-gray-500">${data.age}y, ${data.gender} — Patient #${data.id}</p>
+  `;
+
+  const el = document.getElementById('actionList');
+  if (data.actions.length === 0) {
+    el.innerHTML = '<p class="text-gray-500 text-sm">No actions yet.</p>';
+    return;
+  }
+
+  el.innerHTML = data.actions.map(a => {
+    const nextStates = getNextStates(a);
+    const terminal = getTerminalState(a);
+    const transitionUI = nextStates.length > 0
+      ? `<div class="flex gap-2 mt-2">${nextStates.map(s =>
+          `<button onclick="doTransition(${a.id}, '${s}')"
+            class="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">${s}</button>`
+        ).join('')}</div>`
+      : '<span class="text-xs text-green-600 font-medium mt-2 inline-block">Complete</span>';
+
+    const overdueTag = a.is_overdue
+      ? '<span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-600 text-white ml-2">OVERDUE</span>'
+      : '';
+
+    const slaTime = a.sla_deadline ? new Date(a.sla_deadline + 'Z').toLocaleTimeString() : '—';
+
+    return `
+      <div class="bg-white border rounded-lg px-5 py-4 ${a.is_overdue ? 'border-red-300 bg-red-50' : ''}">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="font-semibold text-gray-700">${getDisplayName(a)}</span>
+            ${stateBadge(a.current_state, terminal)}
+            ${priorityBadge(a.priority)}
+            ${overdueTag}
+          </div>
+          <div class="text-xs text-gray-400">
+            <span>${a.department}</span> · <span>SLA ${slaTime}</span> · <span>#${a.id}</span>
+          </div>
+        </div>
+        ${transitionUI}
+      </div>`;
+  }).join('');
+}
+
+async function loadSummary() {
+  const res = await fetch(`/patients/${PID}/summary`);
+  const s = await res.json();
+  document.getElementById('summary').innerHTML = [
+    ['Total', s.total_actions, 'bg-white'],
+    ['Pending', s.pending, 'bg-white'],
+    ['In Progress', s.in_progress, 'bg-blue-50'],
+    ['Completed', s.completed, 'bg-green-50'],
+    ['Overdue', s.overdue, s.overdue > 0 ? 'bg-red-50' : 'bg-white'],
+  ].map(([label, val, bg]) => `
+    <div class="${bg} border rounded-lg px-4 py-3 text-center">
+      <div class="text-2xl font-bold text-gray-800">${val}</div>
+      <div class="text-xs text-gray-500">${label}</div>
+    </div>
+  `).join('');
+}
+
+async function loadTimeline() {
+  const res = await fetch(`/actions/patients/${PID}/timeline`);
+  const events = await res.json();
+  const el = document.getElementById('timeline');
+  if (events.length === 0) {
+    el.innerHTML = '<p class="text-gray-400 text-sm">No events.</p>';
+    return;
+  }
+  el.innerHTML = events.map(e => `
+    <div class="flex items-center gap-3 text-sm">
+      <span class="text-xs text-gray-400 w-44 shrink-0">${new Date(e.timestamp + 'Z').toLocaleString()}</span>
+      <span class="text-gray-500 font-medium">${e.action_name || 'Action #' + e.action_id}</span>
+      <span class="text-gray-500">${e.previous_state || '—'}</span>
+      <span class="text-gray-400">&rarr;</span>
+      <span class="font-medium text-gray-700">${e.new_state}</span>
+    </div>
+  `).join('');
+}
+
+async function doTransition(actionId, newState) {
+  await fetch(`/actions/${actionId}/transition`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ new_state: newState })
+  });
+}
+
+async function createAction(e) {
+  e.preventDefault();
+  const typeVal = document.getElementById('aType').value;
+  const priority = document.getElementById('aPriority').value;
+  let body;
+  if (typeVal.startsWith('custom:')) {
+    body = { patient_id: PID, custom_action_type_id: parseInt(typeVal.split(':')[1]), priority };
+  } else {
+    body = { patient_id: PID, action_type: typeVal, priority };
+  }
+  await fetch('/actions', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
+  document.getElementById('newActionForm').classList.add('hidden');
+  refresh();
+}
+
+function refresh() {
+  loadPatient();
+  loadSummary();
+  loadTimeline();
+}
+
+// WebSocket
+const wsEl = document.getElementById('wsStatus');
+let ws;
+
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${proto}//${location.host}/ws/patients/${PID}`);
+  ws.onopen = () => { wsEl.textContent = 'Live'; wsEl.className = 'fixed bottom-4 right-4 text-xs px-3 py-1.5 rounded-full bg-green-100 text-green-700'; };
+  ws.onmessage = () => { refresh(); };
+  ws.onclose = () => {
+    wsEl.textContent = 'Reconnecting...';
+    wsEl.className = 'fixed bottom-4 right-4 text-xs px-3 py-1.5 rounded-full bg-amber-100 text-amber-700';
+    setTimeout(connectWS, 2000);
+  };
+}
+
+loadCustomTypes().then(() => {
+  connectWS();
+  refresh();
+});
+</script>
+{% endblock %}
