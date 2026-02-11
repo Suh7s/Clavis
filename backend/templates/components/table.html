@@ -1,0 +1,30 @@
+<div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-slate-200 text-sm">
+      <thead class="bg-slate-50">
+        <tr>
+          {% for header in table_headers %}
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ header }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% if table_rows is defined and table_rows %}
+          {% for row in table_rows %}
+            <tr class="hover:bg-slate-50/80">
+              {% for cell in row %}
+                <td class="whitespace-nowrap px-4 py-3 text-slate-700">{{ cell|safe }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="{{ table_headers|length if table_headers is defined else 1 }}" class="px-4 py-12 text-center text-sm text-slate-500">
+              No records found.
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>

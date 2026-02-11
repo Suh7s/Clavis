@@ -1,0 +1,952 @@
+{% extends "base.html" %}
+{% set page_title = "Patient Detail" %}
+{% set active_page = "patients" %}
+{% block title %}Clavis | Patient #{{ patient_id }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <section class="clavis-page-hero clavis-hero-section rounded-2xl border border-slate-200 p-5 shadow-sm">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div>
+        <a href="/patients/view" class="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-700">← Back to Patients</a>
+        <h2 id="patientName" class="mt-2 text-2xl font-semibold text-slate-800">Loading patient...</h2>
+        <p id="patientMeta" class="mt-1 text-sm text-slate-500">Preparing live record</p>
+      </div>
+      <div id="patientBadgeRow" class="flex items-center gap-2"></div>
+    </div>
+    <p id="summaryNarrative" class="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">Loading computed summary...</p>
+  </section>
+
+  <section id="patientWarnings" class="hidden rounded-2xl border p-4"></section>
+
+  <section class="grid gap-6 xl:grid-cols-12">
+    <aside class="space-y-6 xl:col-span-3">
+      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Patient Summary</p>
+        <dl class="mt-4 space-y-3 text-sm">
+          <div class="flex items-center justify-between">
+            <dt class="text-slate-500">Age</dt>
+            <dd id="summaryAge" class="font-medium text-slate-700">--</dd>
+          </div>
+          <div class="flex items-center justify-between">
+            <dt class="text-slate-500">Gender</dt>
+            <dd id="summaryGender" class="font-medium text-slate-700">--</dd>
+          </div>
+          <div class="flex items-center justify-between">
+            <dt class="text-slate-500">Blood Group</dt>
+            <dd id="summaryBlood" class="font-medium text-slate-700">--</dd>
+          </div>
+          <div class="flex items-center justify-between">
+            <dt class="text-slate-500">Ward</dt>
+            <dd id="summaryWard" class="font-medium text-slate-700">--</dd>
+          </div>
+          <div class="flex items-center justify-between">
+            <dt class="text-slate-500">Status</dt>
+            <dd id="summaryStatus" class="font-medium text-slate-700">--</dd>
+          </div>
+        </dl>
+      </article>
+
+      <article class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 xl:grid-cols-1">
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Total Actions</p>
+          <p id="metricTotal" class="mt-2 text-2xl font-semibold text-slate-800">0</p>
+        </div>
+        <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+          <p class="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Pending</p>
+          <p id="metricPending" class="mt-2 text-2xl font-semibold text-amber-900">0</p>
+        </div>
+        <div class="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 shadow-sm">
+          <p class="text-xs font-semibold uppercase tracking-[0.12em] text-indigo-700">In Progress</p>
+          <p id="metricProgress" class="mt-2 text-2xl font-semibold text-indigo-900">0</p>
+        </div>
+        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+          <p class="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">Completed</p>
+          <p id="metricCompleted" class="mt-2 text-2xl font-semibold text-emerald-900">0</p>
+        </div>
+        <div class="rounded-2xl border border-rose-200 bg-rose-50 p-4 shadow-sm">
+          <p class="text-xs font-semibold uppercase tracking-[0.12em] text-rose-700">Overdue</p>
+          <p id="metricOverdue" class="mt-2 text-2xl font-semibold text-rose-900">0</p>
+        </div>
+      </article>
+    </aside>
+
+    <section class="space-y-6 xl:col-span-6">
+      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Timeline</p>
+            <h3 class="text-lg font-semibold text-slate-800">Clinical Events</h3>
+          </div>
+          <button id="refreshTimeline" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Refresh</button>
+        </div>
+        <div id="timelineList" class="mt-5 space-y-3"></div>
+      </article>
+
+      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Actions</p>
+            <h3 class="text-lg font-semibold text-slate-800">Current Clinical Tasks</h3>
+          </div>
+        </div>
+        <div id="actionsList" class="mt-5 space-y-3"></div>
+      </article>
+    </section>
+
+    <aside class="space-y-6 xl:col-span-3">
+      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Create Action</p>
+        <h3 class="text-lg font-semibold text-slate-800">New Clinical Task</h3>
+        <div class="mt-4">
+          <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Quick Add</p>
+          <div id="quickActionPresets" class="mt-2 flex flex-wrap gap-2">
+            <button type="button" data-preset="cbc" class="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">CBC Panel</button>
+            <button type="button" data-preset="xray" class="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">Chest X-Ray</button>
+            <button type="button" data-preset="med" class="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">Medication Dose</button>
+            <button type="button" data-preset="referral" class="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">Specialist Referral</button>
+          </div>
+        </div>
+        <form id="createActionForm" class="mt-4 space-y-3">
+          <div>
+            <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Type</label>
+            <select id="createActionType" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100">
+              <option value="DIAGNOSTIC">Diagnostic</option>
+              <option value="MEDICATION">Medication</option>
+              <option value="REFERRAL">Referral</option>
+              <option value="CARE_INSTRUCTION">Care Instruction</option>
+              <option value="VITALS_REQUEST">Vitals Request</option>
+            </select>
+          </div>
+          <div>
+            <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Priority</label>
+            <select id="createActionPriority" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100">
+              <option value="ROUTINE">Routine</option>
+              <option value="URGENT">Urgent</option>
+              <option value="CRITICAL">Critical</option>
+            </select>
+          </div>
+          <div>
+            <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Title</label>
+            <input id="createActionTitle" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100" placeholder="e.g., Troponin Panel" />
+            <p id="createActionTitleHint" class="mt-1 text-xs text-slate-500">Title auto-fills from selected type. You can edit it anytime.</p>
+          </div>
+          <details class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <summary class="cursor-pointer text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Advanced Options</summary>
+            <div class="mt-3 space-y-3">
+              <div>
+                <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Department Target (optional)</label>
+                <input id="createActionDepartmentTarget" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" placeholder="Leave empty for auto-routing" />
+              </div>
+              <div>
+                <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Notes</label>
+                <textarea id="createActionNotes" rows="3" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" placeholder="Clinical instructions"></textarea>
+              </div>
+            </div>
+          </details>
+          <p id="createActionHint" class="text-xs text-slate-500">Pick a quick preset or fill this form and submit once.</p>
+          <button id="createActionButton" type="submit" class="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Create Action</button>
+        </form>
+      </article>
+
+      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Transitions</p>
+        <h3 class="text-lg font-semibold text-slate-800">Move Action State</h3>
+        <form id="transitionForm" class="mt-4 space-y-3">
+          <div>
+            <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Action</label>
+            <select id="transitionActionId" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100"></select>
+          </div>
+          <div>
+            <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Next State</label>
+            <select id="transitionNextState" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100"></select>
+          </div>
+          <div>
+            <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Notes (optional)</label>
+            <textarea id="transitionNotes" rows="2" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100" placeholder="Transition notes"></textarea>
+          </div>
+          <p id="transitionHint" class="text-xs text-slate-500">Choose an action and apply the suggested next state.</p>
+          <button id="transitionButton" type="submit" class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Apply Transition</button>
+        </form>
+      </article>
+
+      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Clinical Notes</p>
+        <h3 class="text-lg font-semibold text-slate-800">Quick Add Note</h3>
+        <form id="createNoteForm" class="mt-4 space-y-3">
+          <div>
+            <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Type</label>
+            <select id="createNoteType" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100">
+              <option value="general">General</option>
+              <option value="clinical">Clinical</option>
+              <option value="progress">Progress</option>
+              <option value="discharge">Discharge</option>
+            </select>
+          </div>
+          <div>
+            <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Note</label>
+            <textarea id="createNoteContent" rows="3" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100" placeholder="Add key clinical context"></textarea>
+          </div>
+          <button id="createNoteButton" type="submit" class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Save Note</button>
+        </form>
+        <div id="notesList" class="mt-4 space-y-2"></div>
+      </article>
+    </aside>
+  </section>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+  const PID = Number({{ patient_id }});
+  const CURRENT_USER = getCurrentUser();
+
+  const TRANSITIONS = {
+    DIAGNOSTIC: { REQUESTED: ['SAMPLE_COLLECTED', 'PROCESSING', 'CANCELLED'], SAMPLE_COLLECTED: ['PROCESSING'], PROCESSING: ['COMPLETED', 'FAILED'] },
+    MEDICATION: { PRESCRIBED: ['DISPENSED', 'CANCELLED'], DISPENSED: ['ADMINISTERED'] },
+    REFERRAL: { INITIATED: ['ACKNOWLEDGED', 'CANCELLED'], ACKNOWLEDGED: ['REVIEWED'], REVIEWED: ['CLOSED'] },
+    CARE_INSTRUCTION: { ISSUED: ['ACKNOWLEDGED', 'CANCELLED'], ACKNOWLEDGED: ['IN_PROGRESS'], IN_PROGRESS: ['COMPLETED'] },
+    VITALS_REQUEST: { REQUESTED: ['RECORDED', 'CANCELLED'] }
+  };
+
+  const QUICK_PRESETS = {
+    cbc: { action_type: 'DIAGNOSTIC', priority: 'URGENT', title: 'CBC Panel', department_target: 'Laboratory', notes: 'Urgent blood count check' },
+    xray: { action_type: 'DIAGNOSTIC', priority: 'ROUTINE', title: 'Chest X-Ray', department_target: 'Radiology', notes: 'Standard chest imaging' },
+    med: { action_type: 'MEDICATION', priority: 'URGENT', title: 'Medication Administration', department_target: 'Pharmacy', notes: 'Verify dose and administer' },
+    referral: { action_type: 'REFERRAL', priority: 'URGENT', title: 'Specialist Referral', department_target: '', notes: 'Escalate to specialist review' }
+  };
+
+  const TYPE_DEFAULT_TITLES = {
+    DIAGNOSTIC: 'Diagnostic Assessment',
+    MEDICATION: 'Medication Administration',
+    REFERRAL: 'Specialist Referral',
+    CARE_INSTRUCTION: 'Care Instruction',
+    VITALS_REQUEST: 'Vitals Capture'
+  };
+
+  const state = {
+    patient: null,
+    summary: null,
+    timeline: [],
+    notes: [],
+    customTypes: [],
+    actionsById: {},
+    ws: null,
+    titleTouched: false
+  };
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  }
+
+  function toDate(value) {
+    if (!value) return null;
+    const normalized = String(value).endsWith('Z') ? String(value) : String(value) + 'Z';
+    const date = new Date(normalized);
+    return Number.isFinite(date.getTime()) ? date : null;
+  }
+
+  function formatDateTime(value) {
+    const date = toDate(value);
+    return date ? date.toLocaleString() : '--';
+  }
+
+  function badgeClass(tone) {
+    if (tone === 'rose') return 'bg-rose-100 text-rose-700 border-rose-200';
+    if (tone === 'amber') return 'bg-amber-100 text-amber-700 border-amber-200';
+    if (tone === 'emerald') return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+    if (tone === 'indigo') return 'bg-indigo-100 text-indigo-700 border-indigo-200';
+    if (tone === 'sky') return 'bg-sky-100 text-sky-700 border-sky-200';
+    return 'bg-slate-100 text-slate-700 border-slate-200';
+  }
+
+  function priorityRank(priority) {
+    const value = String(priority || '').toUpperCase();
+    if (value === 'CRITICAL') return 3;
+    if (value === 'URGENT') return 2;
+    return 1;
+  }
+
+  function highestPriority(actions) {
+    let winner = 'ROUTINE';
+    (actions || []).forEach((action) => {
+      const candidate = String(action.priority || 'ROUTINE').toUpperCase();
+      if (priorityRank(candidate) > priorityRank(winner)) winner = candidate;
+    });
+    return winner;
+  }
+
+  function derivePatientStatus(patient) {
+    const admission = String(patient.admission_status || '').toUpperCase();
+    if (admission === 'DISCHARGED') return { label: 'Discharged', tone: 'slate' };
+    const actions = Array.isArray(patient.actions) ? patient.actions : [];
+    if (actions.some((action) => !!action.is_overdue)) return { label: 'Critical', tone: 'rose' };
+    if (actions.some((action) => !action.is_terminal)) return { label: 'Observation', tone: 'amber' };
+    return { label: 'Stable', tone: 'emerald' };
+  }
+
+  function actionLabel(action) {
+    if (action.custom_type_name) return action.custom_type_name;
+    return String(action.action_type || 'ACTION').replace(/_/g, ' ');
+  }
+
+  function defaultTitleForType(typeValue) {
+    if (!typeValue) return 'Clinical Task';
+    if (String(typeValue).startsWith('custom:')) {
+      const customId = Number(String(typeValue).split(':')[1]);
+      const customType = state.customTypes.find((item) => Number(item.id) === customId);
+      return customType ? customType.name : 'Custom Clinical Task';
+    }
+    return TYPE_DEFAULT_TITLES[String(typeValue).toUpperCase()] || String(typeValue).replace(/_/g, ' ');
+  }
+
+  function setCreateHint(text, tone) {
+    const hint = document.getElementById('createActionHint');
+    if (!hint) return;
+    const classes = {
+      neutral: 'text-slate-500',
+      success: 'text-emerald-700',
+      warning: 'text-amber-700',
+      error: 'text-rose-700'
+    };
+    hint.textContent = text;
+    hint.className = 'text-xs ' + (classes[tone] || classes.neutral);
+  }
+
+  function updateCreateTitleSuggestion() {
+    const titleEl = document.getElementById('createActionTitle');
+    const typeEl = document.getElementById('createActionType');
+    const titleHint = document.getElementById('createActionTitleHint');
+    if (!titleEl || !typeEl) return;
+
+    const suggestion = defaultTitleForType(typeEl.value);
+    if (!state.titleTouched || !titleEl.value.trim()) {
+      titleEl.value = suggestion;
+      state.titleTouched = false;
+    }
+    if (titleHint) {
+      titleHint.textContent = 'Suggested title: ' + suggestion;
+    }
+  }
+
+  function getCustomTransitions(action) {
+    const customTypeId = Number(action.custom_action_type_id || 0);
+    if (!customTypeId) return [];
+    const custom = state.customTypes.find((item) => Number(item.id) === customTypeId);
+    if (!custom || !Array.isArray(custom.states)) return [];
+    const idx = custom.states.indexOf(action.current_state);
+    if (idx < 0 || idx >= custom.states.length - 1) return [];
+    return [custom.states[idx + 1]];
+  }
+
+  function getNextStates(action) {
+    if (action.custom_action_type_id) return getCustomTransitions(action);
+    const actionType = String(action.action_type || '').toUpperCase();
+    const current = String(action.current_state || '').toUpperCase();
+    return (TRANSITIONS[actionType] && TRANSITIONS[actionType][current]) ? TRANSITIONS[actionType][current] : [];
+  }
+
+  function parseErrorDetail(body, fallback) {
+    if (!body) return fallback;
+    if (typeof body === 'string') return body || fallback;
+    if (Array.isArray(body.detail)) {
+      const first = body.detail[0];
+      if (first && typeof first.msg === 'string') return first.msg;
+    }
+    return body.detail || body.error || fallback;
+  }
+
+  async function readError(response, fallback) {
+    try {
+      const payload = await response.json();
+      return parseErrorDetail(payload, fallback);
+    } catch (_err) {
+      return fallback;
+    }
+  }
+
+  function renderWarnings(warnings) {
+    const el = document.getElementById('patientWarnings');
+    if (!el) return;
+    if (!warnings || !warnings.length) {
+      el.className = 'hidden rounded-2xl border p-4';
+      el.innerHTML = '';
+      return;
+    }
+    el.className = 'rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm';
+    el.innerHTML = `
+      <p class="text-sm font-semibold text-amber-800">Medication interaction warning</p>
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-700">
+        ${warnings.map((item) => `<li>${escapeHtml(item.message || (item.new_drug + ' with ' + item.existing_drug))}</li>`).join('')}
+      </ul>
+    `;
+  }
+
+  function renderHeader() {
+    if (!state.patient) return;
+    const patient = state.patient;
+    const status = derivePatientStatus(patient);
+    const topPriority = highestPriority(patient.actions || []);
+    const priorityTone = topPriority === 'CRITICAL' ? 'rose' : topPriority === 'URGENT' ? 'amber' : 'sky';
+
+    document.getElementById('patientName').textContent = patient.name || ('Patient #' + PID);
+    document.title = 'Clavis | ' + (patient.name || ('Patient #' + PID));
+
+    const meta = [];
+    meta.push('MRN-' + String(patient.id || PID).padStart(5, '0'));
+    meta.push((patient.age ?? '--') + 'y');
+    meta.push(patient.gender || '--');
+    if (patient.ward) meta.push('Ward ' + patient.ward);
+    if (patient.admission_date) meta.push('Admitted ' + formatDateTime(patient.admission_date));
+    document.getElementById('patientMeta').textContent = meta.join(' · ');
+
+    document.getElementById('patientBadgeRow').innerHTML = `
+      <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${badgeClass(status.tone)}">${status.label}</span>
+      <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${badgeClass(priorityTone)}">${topPriority}</span>
+    `;
+
+    document.getElementById('summaryAge').textContent = patient.age ?? '--';
+    document.getElementById('summaryGender').textContent = patient.gender || '--';
+    document.getElementById('summaryBlood').textContent = patient.blood_group || '--';
+    document.getElementById('summaryWard').textContent = patient.ward || '--';
+    document.getElementById('summaryStatus').textContent = patient.admission_status || 'ADMITTED';
+  }
+
+  function renderSummary() {
+    const summary = state.summary;
+    if (!summary) {
+      const narrative = document.getElementById('summaryNarrative');
+      if (narrative) narrative.textContent = 'Summary unavailable right now.';
+      return;
+    }
+    document.getElementById('metricTotal').textContent = String(summary.total_actions || 0);
+    document.getElementById('metricPending').textContent = String(summary.pending || 0);
+    document.getElementById('metricProgress').textContent = String(summary.in_progress || 0);
+    document.getElementById('metricCompleted').textContent = String(summary.completed || 0);
+    document.getElementById('metricOverdue').textContent = String(summary.overdue || 0);
+    const narrative = document.getElementById('summaryNarrative');
+    if (narrative) narrative.textContent = String(summary.summary_text || 'No summary available.');
+  }
+
+  function actionStateTone(action, nextStates) {
+    if (action.is_overdue) return 'rose';
+    if (!nextStates.length || action.is_terminal) return 'emerald';
+    return 'amber';
+  }
+
+  function renderActions() {
+    const host = document.getElementById('actionsList');
+    if (!host) return;
+
+    const actions = (state.patient && Array.isArray(state.patient.actions)) ? state.patient.actions : [];
+    state.actionsById = {};
+    actions.forEach((action) => {
+      state.actionsById[String(action.id)] = action;
+    });
+
+    if (!actions.length) {
+      host.innerHTML = '<p class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">No actions yet for this patient.</p>';
+      populateTransitionActions();
+      return;
+    }
+
+    host.innerHTML = actions.map((action) => {
+      const states = getNextStates(action);
+      const stateTone = actionStateTone(action, states);
+      const priority = String(action.priority || 'ROUTINE').toUpperCase();
+      const priorityTone = priority === 'CRITICAL' ? 'rose' : priority === 'URGENT' ? 'amber' : 'sky';
+
+      return `
+        <div class="rounded-xl border border-slate-200 p-4 ${action.is_overdue ? 'bg-rose-50/60' : 'bg-white'}">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p class="text-sm font-semibold text-slate-800">${escapeHtml(action.title || actionLabel(action))}</p>
+              <p class="mt-1 text-xs text-slate-500">${escapeHtml(actionLabel(action))} · ${escapeHtml(action.queue_department || action.department || 'Unassigned')}</p>
+              <p class="mt-1 text-xs text-slate-400">State updated ${formatDateTime(action.updated_at || action.created_at)}</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${badgeClass(stateTone)}">${escapeHtml(action.current_state || '--')}</span>
+              <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${badgeClass(priorityTone)}">${priority}</span>
+            </div>
+          </div>
+          ${states.length ? `
+            <div class="mt-4 flex flex-wrap gap-2">
+              ${states.map((nextState) => `
+                <button type="button" data-action-id="${action.id}" data-next-state="${nextState}" class="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
+                  Move to ${escapeHtml(nextState)}
+                </button>
+              `).join('')}
+            </div>
+          ` : '<p class="mt-4 text-xs font-semibold text-emerald-700">Terminal state reached</p>'}
+        </div>
+      `;
+    }).join('');
+
+    host.querySelectorAll('button[data-action-id][data-next-state]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const actionId = String(button.getAttribute('data-action-id') || '');
+        const nextState = String(button.getAttribute('data-next-state') || '');
+        document.getElementById('transitionActionId').value = actionId;
+        updateTransitionStates();
+        document.getElementById('transitionNextState').value = nextState;
+        document.getElementById('transitionNotes').focus();
+      });
+    });
+
+    populateTransitionActions();
+  }
+
+  function renderTimeline() {
+    const host = document.getElementById('timelineList');
+    if (!host) return;
+
+    const events = [...(state.timeline || [])].sort((a, b) => {
+      const left = toDate(a.timestamp);
+      const right = toDate(b.timestamp);
+      return (right ? right.getTime() : 0) - (left ? left.getTime() : 0);
+    });
+
+    if (!events.length) {
+      host.innerHTML = '<p class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">No timeline events yet.</p>';
+      return;
+    }
+
+    host.innerHTML = events.map((event) => {
+      const actor = event.actor_name ? (' · ' + event.actor_name) : '';
+      const notes = event.notes ? `<p class="mt-1 text-xs text-slate-500">${escapeHtml(event.notes)}</p>` : '';
+      return `
+        <div class="relative pl-6">
+          <span class="absolute left-0 top-2 h-2.5 w-2.5 rounded-full bg-indigo-500"></span>
+          <div class="rounded-xl border border-slate-200 p-3">
+            <div class="flex items-center justify-between gap-3">
+              <p class="text-sm font-medium text-slate-700">${escapeHtml(event.action_name || ('Action #' + event.action_id))} · ${escapeHtml(event.previous_state || '--')} → ${escapeHtml(event.new_state || '--')}</p>
+              <p class="text-xs text-slate-400">${formatDateTime(event.timestamp)}</p>
+            </div>
+            <p class="mt-1 text-xs text-slate-500">${escapeHtml(event.department || 'General')}${escapeHtml(actor)}</p>
+            ${notes}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderNotes() {
+    const host = document.getElementById('notesList');
+    if (!host) return;
+    const notes = [...(state.notes || [])].sort((a, b) => {
+      const left = toDate(a.created_at);
+      const right = toDate(b.created_at);
+      return (right ? right.getTime() : 0) - (left ? left.getTime() : 0);
+    });
+    if (!notes.length) {
+      host.innerHTML = '<p class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500">No notes yet.</p>';
+      return;
+    }
+    host.innerHTML = notes.slice(0, 6).map((note) => `
+      <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+        <div class="flex items-center justify-between gap-2">
+          <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">${escapeHtml(note.note_type || 'general')}</p>
+          <p class="text-xs text-slate-400">${formatDateTime(note.created_at)}</p>
+        </div>
+        <p class="mt-1 text-sm text-slate-700">${escapeHtml(note.content || '')}</p>
+        <p class="mt-1 text-xs text-slate-500">${escapeHtml(note.author_name || 'Unknown')}</p>
+      </div>
+    `).join('');
+  }
+
+  function populateActionTypeOptions() {
+    const select = document.getElementById('createActionType');
+    select.querySelectorAll('option[data-custom]').forEach((option) => option.remove());
+    state.customTypes.forEach((custom) => {
+      const option = document.createElement('option');
+      option.value = 'custom:' + custom.id;
+      option.textContent = custom.name;
+      option.setAttribute('data-custom', '1');
+      select.appendChild(option);
+    });
+    updateCreateTitleSuggestion();
+  }
+
+  function canCreateActions() {
+    if (!CURRENT_USER || !CURRENT_USER.role) return false;
+    return ['doctor', 'admin'].includes(String(CURRENT_USER.role).toLowerCase());
+  }
+
+  function applyRoleUI() {
+    const createForm = document.getElementById('createActionForm');
+    const createBtn = document.getElementById('createActionButton');
+    const quickPresetButtons = document.querySelectorAll('#quickActionPresets button[data-preset]');
+    if (!createForm || !createBtn) return;
+    if (canCreateActions()) {
+      setCreateHint('Pick a quick preset or fill this form and submit once.', 'neutral');
+      return;
+    }
+    createForm.querySelectorAll('input, select, textarea, button').forEach((el) => {
+      el.disabled = true;
+      el.classList.add('cursor-not-allowed', 'opacity-60');
+    });
+    createBtn.textContent = 'Doctor/Admin only';
+    quickPresetButtons.forEach((btn) => {
+      btn.disabled = true;
+      btn.classList.add('cursor-not-allowed', 'opacity-60');
+    });
+    setCreateHint('Action creation is restricted for your role.', 'warning');
+  }
+
+  function populateTransitionActions() {
+    const select = document.getElementById('transitionActionId');
+    const nextSelect = document.getElementById('transitionNextState');
+    const button = document.getElementById('transitionButton');
+    const hint = document.getElementById('transitionHint');
+    const actions = (state.patient && Array.isArray(state.patient.actions)) ? state.patient.actions : [];
+    const available = actions.filter((action) => getNextStates(action).length > 0);
+
+    if (!available.length) {
+      select.innerHTML = '<option value="">No transitionable actions</option>';
+      nextSelect.innerHTML = '<option value="">No states</option>';
+      if (button) {
+        button.disabled = true;
+        button.classList.add('cursor-not-allowed', 'opacity-60');
+      }
+      if (hint) hint.textContent = 'No actions currently eligible for transition.';
+      return;
+    }
+
+    const previous = select.value;
+    select.innerHTML = available.map((action) => `<option value="${action.id}">#${action.id} · ${escapeHtml(action.title || actionLabel(action))}</option>`).join('');
+    if (previous && available.some((action) => String(action.id) === previous)) {
+      select.value = previous;
+    }
+    if (button) {
+      button.disabled = false;
+      button.classList.remove('cursor-not-allowed', 'opacity-60');
+    }
+    if (hint) hint.textContent = 'Choose an action and apply the suggested next state.';
+    updateTransitionStates();
+  }
+
+  function updateTransitionStates() {
+    const actionId = String(document.getElementById('transitionActionId').value || '');
+    const action = state.actionsById[actionId];
+    const nextSelect = document.getElementById('transitionNextState');
+    const nextStates = action ? getNextStates(action) : [];
+    if (!nextStates.length) {
+      nextSelect.innerHTML = '<option value="">No valid next state</option>';
+      return;
+    }
+    nextSelect.innerHTML = nextStates.map((stateName) => `<option value="${stateName}">${stateName}</option>`).join('');
+  }
+
+  async function loadCustomTypes() {
+    const response = await fetch('/custom-action-types');
+    if (!response.ok) {
+      state.customTypes = [];
+      populateActionTypeOptions();
+      return;
+    }
+    state.customTypes = await response.json();
+    populateActionTypeOptions();
+  }
+
+  async function loadPatient() {
+    const response = await fetch('/patients/' + PID);
+    if (!response.ok) {
+      const detail = await readError(response, 'Failed to load patient record');
+      throw new Error(detail);
+    }
+    state.patient = await response.json();
+  }
+
+  async function loadSummary() {
+    const response = await fetch('/patients/' + PID + '/summary');
+    if (!response.ok) {
+      state.summary = null;
+      return;
+    }
+    state.summary = await response.json();
+  }
+
+  async function loadTimeline() {
+    const response = await fetch('/patients/' + PID + '/timeline');
+    if (!response.ok) {
+      state.timeline = [];
+      return;
+    }
+    state.timeline = await response.json();
+  }
+
+  async function loadNotes() {
+    const response = await fetch('/patients/' + PID + '/notes');
+    if (!response.ok) {
+      state.notes = [];
+      return;
+    }
+    state.notes = await response.json();
+  }
+
+  async function refreshPatientView() {
+    await Promise.all([loadPatient(), loadSummary(), loadTimeline(), loadNotes()]);
+    renderHeader();
+    renderSummary();
+    renderActions();
+    renderTimeline();
+    renderNotes();
+  }
+
+  function buildCreateActionPayload() {
+    const type = String(document.getElementById('createActionType').value || '');
+    const priority = String(document.getElementById('createActionPriority').value || 'ROUTINE');
+    const title = String(document.getElementById('createActionTitle').value || '').trim();
+    const notes = String(document.getElementById('createActionNotes').value || '');
+    const target = String(document.getElementById('createActionDepartmentTarget').value || '').trim();
+    if (!title) return { error: 'Action title is required' };
+
+    if (type.startsWith('custom:')) {
+      return {
+        payload: {
+          patient_id: PID,
+          custom_action_type_id: Number(type.split(':')[1]),
+          priority: priority,
+          title: title,
+          notes: notes
+        }
+      };
+    }
+    return {
+      payload: {
+        patient_id: PID,
+        action_type: type,
+        priority: priority,
+        title: title,
+        notes: notes,
+        department_target: target || null
+      }
+    };
+  }
+
+  async function submitCreateAction(payload, successText) {
+    const button = document.getElementById('createActionButton');
+    if (button) {
+      button.disabled = true;
+      button.classList.add('cursor-not-allowed', 'opacity-60');
+      button.textContent = 'Saving...';
+    }
+    setCreateHint('Creating action...', 'neutral');
+
+    const response = await fetch('/actions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (button) {
+      button.disabled = false;
+      button.classList.remove('cursor-not-allowed', 'opacity-60');
+      button.textContent = 'Create Action';
+    }
+
+    if (!response.ok) {
+      const detail = await readError(response, 'Failed to create action');
+      setCreateHint(detail, 'error');
+      showToast(detail, 'error');
+      return false;
+    }
+
+    const created = await response.json();
+    renderWarnings(created.warnings || []);
+    setCreateHint(successText || 'Action created successfully.', 'success');
+    showToast(successText || 'Action created', 'success');
+    await refreshPatientView();
+    return true;
+  }
+
+  async function createAction(event) {
+    event.preventDefault();
+    if (!canCreateActions()) {
+      showToast('Only doctor/admin can create actions', 'warning');
+      return;
+    }
+    const built = buildCreateActionPayload();
+    if (built.error) {
+      setCreateHint(built.error, 'warning');
+      showToast(built.error, 'warning');
+      return;
+    }
+    const ok = await submitCreateAction(built.payload, 'Action created');
+    if (!ok) return;
+    state.titleTouched = false;
+    updateCreateTitleSuggestion();
+    document.getElementById('createActionNotes').value = '';
+    document.getElementById('createActionDepartmentTarget').value = '';
+  }
+
+  async function applyQuickPreset(presetKey) {
+    if (!canCreateActions()) {
+      showToast('Only doctor/admin can create actions', 'warning');
+      return;
+    }
+    const preset = QUICK_PRESETS[presetKey];
+    if (!preset) return;
+    document.getElementById('createActionType').value = preset.action_type;
+    document.getElementById('createActionPriority').value = preset.priority;
+    document.getElementById('createActionTitle').value = preset.title;
+    document.getElementById('createActionDepartmentTarget').value = preset.department_target || '';
+    document.getElementById('createActionNotes').value = preset.notes || '';
+    state.titleTouched = true;
+    await submitCreateAction({
+      patient_id: PID,
+      action_type: preset.action_type,
+      priority: preset.priority,
+      title: preset.title,
+      notes: preset.notes || '',
+      department_target: preset.department_target || null
+    }, preset.title + ' added');
+  }
+
+  async function createNote(event) {
+    event.preventDefault();
+    const type = String(document.getElementById('createNoteType').value || 'general');
+    const content = String(document.getElementById('createNoteContent').value || '').trim();
+    if (!content) {
+      showToast('Note content is required', 'warning');
+      return;
+    }
+    const button = document.getElementById('createNoteButton');
+    if (button) {
+      button.disabled = true;
+      button.classList.add('cursor-not-allowed', 'opacity-60');
+      button.textContent = 'Saving...';
+    }
+    const response = await fetch('/patients/' + PID + '/notes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note_type: type, content: content })
+    });
+    if (button) {
+      button.disabled = false;
+      button.classList.remove('cursor-not-allowed', 'opacity-60');
+      button.textContent = 'Save Note';
+    }
+    if (!response.ok) {
+      const detail = await readError(response, 'Failed to save note');
+      showToast(detail, 'error');
+      return;
+    }
+    document.getElementById('createNoteContent').value = '';
+    showToast('Note saved', 'success');
+    await loadNotes();
+    renderNotes();
+  }
+
+  async function applyTransition(event) {
+    event.preventDefault();
+    const actionId = Number(document.getElementById('transitionActionId').value || 0);
+    const nextState = String(document.getElementById('transitionNextState').value || '');
+    const notes = String(document.getElementById('transitionNotes').value || '');
+
+    if (!actionId || !nextState) {
+      showToast('Choose action and next state', 'warning');
+      return;
+    }
+
+    const response = await fetch('/actions/' + actionId + '/transition', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ new_state: nextState, notes: notes })
+    });
+
+    if (!response.ok) {
+      const detail = await readError(response, 'Transition failed');
+      showToast(detail, 'error');
+      return;
+    }
+
+    showToast('Action transitioned to ' + nextState, 'success');
+    document.getElementById('transitionNotes').value = '';
+    await refreshPatientView();
+  }
+
+  function realtimeMessage(payload) {
+    if (!payload || !payload.event) return 'Patient timeline updated';
+    if (payload.event === 'action_created') return 'New action #' + payload.action_id + ' created';
+    if (payload.event === 'action_updated') return 'Action #' + payload.action_id + ' moved to ' + (payload.new_state || 'updated state');
+    if (payload.event === 'sla_overdue') return 'SLA overdue alert for action #' + payload.action_id;
+    return 'Patient record updated';
+  }
+
+  function connectPatientSocket() {
+    const token = getAuthToken();
+    if (!token) return;
+
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = proto + '//' + location.host + '/ws/patients/' + PID + '?token=' + encodeURIComponent(token);
+
+    try {
+      state.ws = new WebSocket(wsUrl);
+      state.ws.onmessage = async function(event) {
+        try {
+          const payload = JSON.parse(event.data);
+          showToast(realtimeMessage(payload), payload && payload.event === 'sla_overdue' ? 'warning' : 'info');
+        } catch (_err) {
+          showToast('Patient update received', 'info');
+        }
+        await refreshPatientView();
+      };
+      state.ws.onclose = function() {
+        setTimeout(connectPatientSocket, 2500);
+      };
+    } catch (_err) {
+      showToast('Realtime channel unavailable', 'warning');
+    }
+  }
+
+  document.getElementById('createActionForm')?.addEventListener('submit', createAction);
+  document.getElementById('transitionForm')?.addEventListener('submit', applyTransition);
+  document.getElementById('createNoteForm')?.addEventListener('submit', createNote);
+  document.getElementById('transitionActionId')?.addEventListener('change', updateTransitionStates);
+  document.getElementById('createActionType')?.addEventListener('change', function() {
+    if (!state.titleTouched) updateCreateTitleSuggestion();
+  });
+  document.getElementById('createActionTitle')?.addEventListener('input', function(event) {
+    state.titleTouched = !!String(event.target.value || '').trim();
+  });
+  document.getElementById('createActionNotes')?.addEventListener('keydown', function(event) {
+    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+      event.preventDefault();
+      document.getElementById('createActionForm')?.requestSubmit();
+    }
+  });
+  document.getElementById('createNoteContent')?.addEventListener('keydown', function(event) {
+    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+      event.preventDefault();
+      document.getElementById('createNoteForm')?.requestSubmit();
+    }
+  });
+  document.getElementById('quickActionPresets')?.addEventListener('click', function(event) {
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest('button[data-preset]');
+    if (!button) return;
+    applyQuickPreset(button.getAttribute('data-preset'));
+  });
+  document.getElementById('refreshTimeline')?.addEventListener('click', refreshPatientView);
+
+  (async function init() {
+    applyRoleUI();
+    try {
+      await loadCustomTypes();
+      updateCreateTitleSuggestion();
+      await refreshPatientView();
+      connectPatientSocket();
+      setInterval(function() {
+        if (document.visibilityState === 'visible') {
+          refreshPatientView();
+        }
+      }, 20000);
+    } catch (error) {
+      showToast(error.message || 'Failed to load patient detail', 'error');
+      document.getElementById('patientName').textContent = 'Unable to load patient';
+      document.getElementById('patientMeta').textContent = error.message || 'Try again';
+    }
+  })();
+</script>
+{% endblock %}

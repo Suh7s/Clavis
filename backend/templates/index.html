@@ -1,54 +1,84 @@
 {% extends "base.html" %}
+{% set page_title = "Patients" %}
+{% set active_page = "patients" %}
 {% block title %}Clavis — Patients{% endblock %}
 {% block content %}
-<div class="flex items-center justify-between mb-6">
-  <h1 class="text-2xl font-bold text-gray-800">Patients</h1>
-  <div class="flex items-center gap-2">
-    <a id="statusBoardEntry" href="/status-board/view"
-      class="border border-gray-300 text-gray-700 text-sm px-4 py-2 rounded-lg hover:bg-gray-50">
-      Status Board
-    </a>
-    <button onclick="document.getElementById('newPatientModal').classList.toggle('hidden')"
-      class="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700">
-      + New Patient
-    </button>
-  </div>
-</div>
-
-<div class="bg-white border rounded-lg p-4 mb-6">
-  <h3 class="font-semibold text-gray-700 mb-2">Department Queues</h3>
-  <div class="flex flex-wrap gap-2 text-sm">
-    <a href="/departments/Radiology/view" class="px-3 py-1.5 rounded border hover:bg-gray-50">Radiology</a>
-    <a href="/departments/Laboratory/view" class="px-3 py-1.5 rounded border hover:bg-gray-50">Laboratory</a>
-    <a href="/departments/Pharmacy/view" class="px-3 py-1.5 rounded border hover:bg-gray-50">Pharmacy</a>
-    <a href="/departments/Nursing/view" class="px-3 py-1.5 rounded border hover:bg-gray-50">Nursing</a>
-    <a href="/departments/Referral/view" class="px-3 py-1.5 rounded border hover:bg-gray-50">Referral</a>
-  </div>
-</div>
-
-<div id="newPatientModal" class="hidden mb-6 bg-white rounded-lg border p-4">
-  <h3 class="font-semibold text-gray-700 mb-3">Register Patient</h3>
-  <form onsubmit="createPatient(event)" class="flex gap-3 items-end">
-    <div>
-      <label class="block text-xs text-gray-500 mb-1">Name</label>
-      <input id="pName" required class="border rounded px-3 py-1.5 text-sm" placeholder="Full name">
+<div class="space-y-6">
+  <section class="clavis-page-hero clavis-hero-section rounded-2xl border border-slate-200 p-5 shadow-sm">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Patient Registry</p>
+        <h2 class="text-2xl font-semibold text-slate-800">Clinical Patients</h2>
+        <p class="mt-1 text-sm text-slate-500">Track active admissions, queue movement, and care progression in real time.</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <a id="statusBoardEntry" href="/status-board/view" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+          Status Board
+        </a>
+        <button id="newPatientButton" onclick="toggleNewPatientForm()" class="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+          + New Patient
+        </button>
+      </div>
     </div>
-    <div>
-      <label class="block text-xs text-gray-500 mb-1">Age</label>
-      <input id="pAge" type="number" required class="border rounded px-3 py-1.5 text-sm w-20" placeholder="Age">
-    </div>
-    <div>
-      <label class="block text-xs text-gray-500 mb-1">Gender</label>
-      <select id="pGender" class="border rounded px-3 py-1.5 text-sm">
-        <option>Male</option><option>Female</option><option>Other</option>
-      </select>
-    </div>
-    <button type="submit" class="bg-green-600 text-white text-sm px-4 py-1.5 rounded hover:bg-green-700">Create</button>
-  </form>
-  <p id="patientError" class="text-sm text-red-600 mt-3 hidden"></p>
-</div>
+  </section>
 
-<div id="patientList" class="space-y-2"></div>
+  <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <h3 class="text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">Department Queues</h3>
+    <div class="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-3 lg:grid-cols-5">
+      <a href="/departments/Radiology/view" class="rounded-xl border border-gray-300 px-3 py-1.5 text-center hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700">Radiology</a>
+      <a href="/departments/Laboratory/view" class="rounded-xl border border-gray-300 px-3 py-1.5 text-center hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700">Laboratory</a>
+      <a href="/departments/Pharmacy/view" class="rounded-xl border border-gray-300 px-3 py-1.5 text-center hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700">Pharmacy</a>
+      <a href="/departments/Nursing/view" class="rounded-xl border border-gray-300 px-3 py-1.5 text-center hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700">Nursing</a>
+      <a href="/departments/Referral/view" class="rounded-xl border border-gray-300 px-3 py-1.5 text-center hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700">Referral</a>
+    </div>
+  </section>
+
+  <section id="newPatientModal" class="hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200">Register Patient</h3>
+    <form onsubmit="createPatient(event)" class="mt-4 space-y-3">
+      <div class="flex flex-wrap items-end gap-3">
+        <div>
+          <label class="mb-1 block text-xs text-gray-500 dark:text-gray-400">Name</label>
+          <input id="pName" required class="rounded-xl border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100" placeholder="Full name">
+        </div>
+        <div>
+          <label class="mb-1 block text-xs text-gray-500 dark:text-gray-400">Age</label>
+          <input id="pAge" type="number" required class="w-20 rounded-xl border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100" placeholder="Age">
+        </div>
+        <div>
+          <label class="mb-1 block text-xs text-gray-500 dark:text-gray-400">Gender</label>
+          <select id="pGender" class="rounded-xl border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100">
+            <option>Male</option><option>Female</option><option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label class="mb-1 block text-xs text-gray-500 dark:text-gray-400">Blood Group</label>
+          <select id="pBlood" class="rounded-xl border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100">
+            <option value="">—</option>
+            <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+            <option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
+          </select>
+        </div>
+        <div>
+          <label class="mb-1 block text-xs text-gray-500 dark:text-gray-400">Ward</label>
+          <input id="pWard" class="rounded-xl border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100" placeholder="e.g. General Ward A">
+        </div>
+      </div>
+      <button type="submit" class="rounded-xl bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700">Create</button>
+    </form>
+    <p id="patientError" class="mt-3 hidden text-sm text-red-600"></p>
+  </section>
+
+  <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div class="mb-4">
+      <input id="searchInput" data-shortcut-search type="text" placeholder="Search patients by name..."
+        class="w-full max-w-sm rounded-xl border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+        oninput="debounceSearch()">
+    </div>
+    <div id="patientList" class="space-y-2"></div>
+    <div id="pagination" class="mt-4 flex items-center justify-between text-sm text-gray-500 dark:text-gray-400"></div>
+  </section>
+</div>
 
 <script>
 function escapeHtml(value) {
@@ -61,30 +91,73 @@ function escapeHtml(value) {
   }[ch]));
 }
 
+let currentPage = 1;
+let searchTimer = null;
+
+function toggleNewPatientForm() {
+  document.getElementById('newPatientModal').classList.toggle('hidden');
+}
+
+function debounceSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { currentPage = 1; loadPatients(); }, 300);
+}
+
 async function loadPatients() {
-  const res = await fetch('/patients');
+  if (!getAuthToken()) return;
+  const search = (document.getElementById('searchInput')?.value || '').trim();
+  const params = new URLSearchParams({ page: currentPage, page_size: 50 });
+  if (search) params.set('search', search);
+  const res = await fetch('/patients?' + params);
+  if (res.status === 401) return;
   if (!res.ok) {
-    document.getElementById('patientList').innerHTML = '<p class="text-red-600 text-sm">Failed to load patients.</p>';
+    let msg = 'Failed to load patients.';
+    try {
+      const payload = await res.json();
+      msg = payload.detail || payload.error || msg;
+    } catch {}
+    document.getElementById('patientList').innerHTML = `<p class="text-red-600 text-sm">${escapeHtml(msg)}</p>`;
     return;
   }
-  const patients = await res.json();
+  const data = await res.json();
+  const patients = data.patients || [];
   const el = document.getElementById('patientList');
   if (patients.length === 0) {
-    el.innerHTML = '<p class="text-gray-500 text-sm">No patients registered.</p>';
+    el.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-sm">No patients registered.</p>';
+    document.getElementById('pagination').innerHTML = '';
     return;
   }
-  el.innerHTML = patients.map(p => `
+  el.innerHTML = patients.map(p => {
+    const extras = [p.blood_group, p.ward].filter(Boolean).join(' · ');
+    const inactiveTag = p.is_active === false ? '<span class="text-xs bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-300 px-2 py-0.5 rounded-full ml-2">Inactive</span>' : '';
+    return `
     <a href="/patients/${p.id}/view"
-       class="block bg-white border rounded-lg px-5 py-4 hover:border-blue-400 hover:shadow-sm transition">
+       class="block bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg px-5 py-4 hover:border-blue-400 hover:shadow-sm transition">
       <div class="flex items-center justify-between">
         <div>
-          <span class="font-semibold text-gray-800">${escapeHtml(p.name)}</span>
-          <span class="ml-3 text-sm text-gray-500">${p.age}y, ${escapeHtml(p.gender)}</span>
+          <span class="font-semibold text-gray-800 dark:text-gray-100">${escapeHtml(p.name)}</span>${inactiveTag}
+          <span class="ml-3 text-sm text-gray-500 dark:text-gray-400">${p.age}y, ${escapeHtml(p.gender)}</span>
+          ${extras ? `<span class="ml-3 text-xs text-gray-400 dark:text-gray-500">${escapeHtml(extras)}</span>` : ''}
         </div>
-        <span class="text-xs text-gray-400">ID #${p.id}</span>
+        <span class="text-xs text-gray-400 dark:text-gray-500">ID #${p.id}</span>
       </div>
-    </a>
-  `).join('');
+    </a>`;
+  }).join('');
+
+  const totalPages = Math.ceil(data.total / data.page_size);
+  const pagEl = document.getElementById('pagination');
+  if (totalPages > 1) {
+    pagEl.innerHTML = `
+      <span>Page ${data.page} of ${totalPages} (${data.total} patients)</span>
+      <div class="flex gap-2">
+        <button onclick="currentPage=Math.max(1,currentPage-1);loadPatients()" ${data.page <= 1 ? 'disabled' : ''}
+          class="border border-gray-300 dark:border-gray-700 rounded px-3 py-1 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40">Prev</button>
+        <button onclick="currentPage++;loadPatients()" ${data.page >= totalPages ? 'disabled' : ''}
+          class="border border-gray-300 dark:border-gray-700 rounded px-3 py-1 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40">Next</button>
+      </div>`;
+  } else {
+    pagEl.innerHTML = data.total > 0 ? `<span>${data.total} patient${data.total > 1 ? 's' : ''}</span>` : '';
+  }
 }
 
 async function createPatient(e) {
@@ -96,23 +169,32 @@ async function createPatient(e) {
   if (!nameValue) {
     errEl.textContent = 'Name is required.';
     errEl.classList.remove('hidden');
+    showToast('Name is required', 'warning');
     return;
   }
   if (!Number.isFinite(ageValue)) {
     errEl.textContent = 'Age must be a valid number.';
     errEl.classList.remove('hidden');
+    showToast('Age must be valid', 'warning');
     return;
   }
+
+  const body = {
+    name: nameValue,
+    age: ageValue,
+    gender: document.getElementById('pGender').value,
+  };
+  const blood = document.getElementById('pBlood').value;
+  const ward = document.getElementById('pWard').value.trim();
+  if (blood) body.blood_group = blood;
+  if (ward) body.ward = ward;
 
   const res = await fetch('/patients', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      name: nameValue,
-      age: ageValue,
-      gender: document.getElementById('pGender').value
-    })
+    body: JSON.stringify(body)
   });
+  if (res.status === 401) return;
   if (!res.ok) {
     let msg = 'Failed to create patient.';
     try {
@@ -121,15 +203,25 @@ async function createPatient(e) {
     } catch {}
     errEl.textContent = msg;
     errEl.classList.remove('hidden');
+    showToast(msg, 'error');
     return;
   }
   document.getElementById('pName').value = '';
   document.getElementById('pAge').value = '';
+  document.getElementById('pWard').value = '';
   document.getElementById('newPatientModal').classList.add('hidden');
+  showToast('Patient created', 'success');
   loadPatients();
 }
 
-loadPatients();
+window.clavisSearchTarget = document.getElementById('searchInput');
+window.clavisToggleNewForm = toggleNewPatientForm;
+
+if (!getAuthToken()) {
+  location.href = '/login';
+} else {
+  loadPatients();
+}
 setInterval(() => {
   if (document.visibilityState === 'visible') {
     loadPatients();

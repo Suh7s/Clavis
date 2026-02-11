@@ -29,6 +29,12 @@ class UserRole(str, Enum):
     ADMIN = "admin"
 
 
+class AdmissionStatus(str, Enum):
+    ADMITTED = "ADMITTED"
+    DISCHARGED = "DISCHARGED"
+    TRANSFERRED = "TRANSFERRED"
+
+
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
@@ -45,6 +51,14 @@ class Patient(SQLModel, table=True):
     name: str
     age: int
     gender: str
+    blood_group: Optional[str] = None
+    admission_date: Optional[datetime] = Field(default_factory=datetime.utcnow)
+    ward: Optional[str] = None
+    primary_doctor_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    is_active: bool = True
+    admission_status: AdmissionStatus = AdmissionStatus.ADMITTED
+    discharge_date: Optional[datetime] = None
+    discharge_notes: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -82,6 +96,7 @@ class ClinicalAction(SQLModel, table=True):
     department: str
     sla_deadline: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
 
 
 class ActionEvent(SQLModel, table=True):
@@ -93,3 +108,36 @@ class ActionEvent(SQLModel, table=True):
     new_state: str
     notes: str = ""
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
+class PatientNote(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    patient_id: int = Field(foreign_key="patient.id")
+    author_id: int = Field(foreign_key="user.id")
+    note_type: str = "general"
+    content: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class PatientTransfer(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    patient_id: int = Field(foreign_key="patient.id")
+    from_doctor_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    to_doctor_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    from_ward: Optional[str] = None
+    to_ward: Optional[str] = None
+    reason: str = ""
+    transferred_by: int = Field(foreign_key="user.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class Attachment(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    patient_id: int = Field(foreign_key="patient.id")
+    action_id: Optional[int] = Field(default=None, foreign_key="clinicalaction.id")
+    filename: str
+    file_type: str = ""
+    file_size: int = 0
+    stored_path: str
+    created_by: int = Field(foreign_key="user.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)

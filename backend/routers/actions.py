@@ -9,7 +9,8 @@ from database import get_session
 from models import ActionEvent, ActionType, ClinicalAction, CustomActionType, Patient, Priority, User, UserRole
 from services.access import can_access_department_queue, roles_allowed_for_transition
 from services.auth import get_current_user, require_roles
-from services.sla import compute_custom_sla_deadline, compute_sla_deadline, is_action_overdue
+from services.drug_interactions import check_interactions
+from services.sla import compute_custom_sla_deadline, compute_sla_deadline, is_action_overdue, is_terminal_state
 from services.workflow import (
     default_department_for_action,
     department_matches,
@@ -37,6 +38,20 @@ def _get_custom_type(action: ClinicalAction, session: Session) -> CustomActionTy
 def _get_custom_terminal(action: ClinicalAction, session: Session) -> str | None:
     cat = _get_custom_type(action, session)
     return cat.terminal_state if cat else None
+
+
+def _ensure_patient_not_discharged(patient: Patient):
+    from models import AdmissionStatus
+
+    if patient.admission_status == AdmissionStatus.DISCHARGED:
+        raise HTTPException(422, "Cannot modify actions for a discharged patient")
+
+
+def _ensure_action_patient_not_discharged(action: ClinicalAction, session: Session):
+    patient = session.get(Patient, action.patient_id)
+    if not patient:
+        raise HTTPException(404, "Patient not found")
+    _ensure_patient_not_discharged(patient)
 
 
 def action_response(action: ClinicalAction, session: Session) -> dict:
@@ -102,12 +117,48 @@ class TransitionRequest(BaseModel):
     notes: str = Field(default="", max_length=2000)
 
 
-@router.post("", status_code=201)
-async def create_action(
+class BulkCreateRequest(BaseModel):
+    actions: list[ActionCreate] = Field(min_length=1, max_length=200)
+
+
+class BulkTransitionItem(BaseModel):
+    action_id: int
+    new_state: str = Field(min_length=1, max_length=64)
+    notes: str = Field(default="", max_length=2000)
+
+
+class BulkTransitionRequest(BaseModel):
+    transitions: list[BulkTransitionItem] = Field(min_length=1, max_length=200)
+
+
+def _active_medication_titles_for_patient(
+    patient_id: int,
+    exclude_action_id: int,
+    session: Session,
+) -> list[str]:
+    meds = session.exec(
+        select(ClinicalAction).where(
+            ClinicalAction.patient_id == patient_id,
+            ClinicalAction.action_type == ActionType.MEDICATION,
+            ClinicalAction.id != exclude_action_id,
+        )
+    ).all()
+
+    active = []
+    for med in meds:
+        custom_terminal = _get_custom_terminal(med, session)
+        if is_terminal_state(med.action_type, med.current_state, custom_terminal):
+            continue
+        active.append(med.title)
+    return active
+
+
+async def _create_single_action(
     body: ActionCreate,
-    session: Session = Depends(get_session),
-    current_user: User = Depends(require_roles(UserRole.DOCTOR, UserRole.ADMIN)),
-):
+    session: Session,
+    current_user: User,
+    broadcast: bool = True,
+) -> dict:
     if body.action_type and body.custom_action_type_id:
         raise HTTPException(422, "Set action_type OR custom_action_type_id, not both")
     if not body.action_type and not body.custom_action_type_id:
@@ -116,6 +167,7 @@ async def create_action(
     patient = session.get(Patient, body.patient_id)
     if not patient:
         raise HTTPException(404, "Patient not found")
+    _ensure_patient_not_discharged(patient)
 
     title = body.title.strip()
     notes = body.notes.strip()
@@ -155,6 +207,7 @@ async def create_action(
         department=department,
         sla_deadline=sla_deadline,
     )
+
     try:
         session.add(action)
         session.flush()
@@ -174,9 +227,170 @@ async def create_action(
         raise HTTPException(500, "Failed to create action")
 
     print(f"[ACTION] Created #{action.id} {label} '{action.title}' for patient #{body.patient_id}")
-    await _broadcast_action_change(action, session, "action_created")
+    if broadcast:
+        await _broadcast_action_change(action, session, "action_created")
+
+    response = action_response(action, session)
+    if body.action_type == ActionType.MEDICATION:
+        warnings = check_interactions(
+            title,
+            _active_medication_titles_for_patient(body.patient_id, action.id, session),
+        )
+        if warnings:
+            response["warnings"] = warnings
+
+    return response
+
+
+async def _transition_single_action(
+    action_id: int,
+    body: TransitionRequest,
+    session: Session,
+    current_user: User,
+    broadcast: bool = True,
+) -> dict:
+    action = session.get(ClinicalAction, action_id)
+    if not action:
+        raise HTTPException(404, "Action not found")
+    _ensure_action_patient_not_discharged(action, session)
+
+    new_state = body.new_state.strip().upper()
+    if not new_state:
+        raise HTTPException(422, "new_state cannot be empty")
+    notes = body.notes.strip()
+
+    custom_terminal = _get_custom_terminal(action, session)
+    previous_queues = queue_departments_for_action(action, custom_terminal)
+
+    try:
+        if action.custom_action_type_id:
+            cat = session.get(CustomActionType, action.custom_action_type_id)
+            if not cat:
+                raise HTTPException(404, "Custom action type not found")
+            validate_custom_transition(cat, action.current_state, new_state)
+        else:
+            validate_transition(action.action_type, action.current_state, new_state)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+    allowed_roles = roles_allowed_for_transition(action, new_state)
+    if current_user.role not in allowed_roles:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Role '{current_user.role.value}' cannot transition this action to '{new_state}'",
+        )
+
+    prev = action.current_state
+    action.current_state = new_state
+    action.updated_at = datetime.utcnow()
+    session.add(action)
+
+    event = ActionEvent(
+        action_id=action.id,
+        actor_id=current_user.id,
+        actor_role=current_user.role,
+        previous_state=prev,
+        new_state=new_state,
+        notes=notes,
+    )
+    session.add(event)
+
+    try:
+        session.commit()
+        session.refresh(action)
+    except Exception:
+        session.rollback()
+        raise HTTPException(500, "Failed to save transition")
+
+    print(f"[TRANSITION] Action #{action_id}: {prev} -> {new_state}")
+    if broadcast:
+        await _broadcast_action_change(action, session, "action_updated", previous_queues=previous_queues)
 
     return action_response(action, session)
+
+
+@router.post("", status_code=201)
+async def create_action(
+    body: ActionCreate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_roles(UserRole.DOCTOR, UserRole.ADMIN)),
+):
+    return await _create_single_action(body, session, current_user)
+
+
+@router.post("/bulk")
+async def create_actions_bulk(
+    body: BulkCreateRequest,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_roles(UserRole.DOCTOR, UserRole.ADMIN)),
+):
+    successful: list[dict] = []
+    failed: list[dict] = []
+
+    for index, item in enumerate(body.actions):
+        try:
+            result = await _create_single_action(item, session, current_user)
+            successful.append({"index": index, "action": result})
+        except HTTPException as exc:
+            session.rollback()
+            failed.append(
+                {
+                    "index": index,
+                    "status_code": exc.status_code,
+                    "error": exc.detail,
+                    "request": item.model_dump(),
+                }
+            )
+        except Exception:
+            session.rollback()
+            failed.append(
+                {
+                    "index": index,
+                    "status_code": 500,
+                    "error": "Failed to create action",
+                    "request": item.model_dump(),
+                }
+            )
+
+    return {"successful": successful, "failed": failed}
+
+
+@router.patch("/bulk/transition")
+async def transition_actions_bulk(
+    body: BulkTransitionRequest,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    successful: list[dict] = []
+    failed: list[dict] = []
+
+    for index, item in enumerate(body.transitions):
+        try:
+            payload = TransitionRequest(new_state=item.new_state, notes=item.notes)
+            result = await _transition_single_action(item.action_id, payload, session, current_user)
+            successful.append({"index": index, "action_id": item.action_id, "action": result})
+        except HTTPException as exc:
+            session.rollback()
+            failed.append(
+                {
+                    "index": index,
+                    "action_id": item.action_id,
+                    "status_code": exc.status_code,
+                    "error": exc.detail,
+                }
+            )
+        except Exception:
+            session.rollback()
+            failed.append(
+                {
+                    "index": index,
+                    "action_id": item.action_id,
+                    "status_code": 500,
+                    "error": "Failed to transition action",
+                }
+            )
+
+    return {"successful": successful, "failed": failed}
 
 
 @router.patch("/{action_id}", response_model=None)
@@ -197,6 +411,7 @@ async def edit_action(
         action.title = title
     if body.notes is not None:
         action.notes = body.notes.strip()
+    action.updated_at = datetime.utcnow()
     if body.priority is not None:
         action.priority = body.priority
         if action.custom_action_type_id:
@@ -227,61 +442,7 @@ async def transition_action(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    action = session.get(ClinicalAction, action_id)
-    if not action:
-        raise HTTPException(404, "Action not found")
-
-    new_state = body.new_state.strip().upper()
-    if not new_state:
-        raise HTTPException(422, "new_state cannot be empty")
-    notes = body.notes.strip()
-
-    custom_terminal = _get_custom_terminal(action, session)
-    previous_queues = queue_departments_for_action(action, custom_terminal)
-
-    try:
-        if action.custom_action_type_id:
-            cat = session.get(CustomActionType, action.custom_action_type_id)
-            if not cat:
-                raise HTTPException(404, "Custom action type not found")
-            validate_custom_transition(cat, action.current_state, new_state)
-        else:
-            validate_transition(action.action_type, action.current_state, new_state)
-    except ValueError as exc:
-        raise HTTPException(422, str(exc)) from exc
-
-    allowed_roles = roles_allowed_for_transition(action, new_state)
-    if current_user.role not in allowed_roles:
-        raise HTTPException(
-            status_code=403,
-            detail=f"Role '{current_user.role.value}' cannot transition this action to '{new_state}'",
-        )
-
-    prev = action.current_state
-    action.current_state = new_state
-    session.add(action)
-
-    event = ActionEvent(
-        action_id=action.id,
-        actor_id=current_user.id,
-        actor_role=current_user.role,
-        previous_state=prev,
-        new_state=new_state,
-        notes=notes,
-    )
-    session.add(event)
-
-    try:
-        session.commit()
-        session.refresh(action)
-    except Exception:
-        session.rollback()
-        raise HTTPException(500, "Failed to save transition")
-
-    print(f"[TRANSITION] Action #{action_id}: {prev} -> {new_state}")
-    await _broadcast_action_change(action, session, "action_updated", previous_queues=previous_queues)
-
-    return action_response(action, session)
+    return await _transition_single_action(action_id, body, session, current_user)
 
 
 @router.get("/patients/{patient_id}/timeline")

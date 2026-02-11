@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+{% set page_title = "Analytics" %}
+{% set active_page = "analytics" %}
+{% block title %}Clavis | Analytics{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <section id="analyticsAccessMessage" class="hidden rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+    <p class="text-sm font-semibold text-amber-700">Analytics access is restricted to doctor/admin roles.</p>
+    <p class="mt-1 text-sm text-amber-600">Sign in with a privileged role to view throughput and SLA analytics.</p>
+  </section>
+
+  <section id="analyticsContent" class="space-y-6">
+    <section class="clavis-page-hero clavis-hero-section rounded-2xl border border-slate-200 p-5 shadow-sm">
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Clinical Intelligence</p>
+          <h2 class="text-2xl font-semibold text-slate-800">Operational Analytics</h2>
+          <p class="mt-1 text-sm text-slate-500">Track throughput, SLA adherence, bottlenecks, and completion quality across departments.</p>
+        </div>
+        <button id="analyticsExportHero" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Export CSV</button>
+      </div>
+    </section>
+
+    <section id="analyticsKpiGrid" class="clavis-kpi-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <article class="clavis-tilt clavis-glow-border rounded-2xl border border-indigo-200 bg-indigo-50 p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700">Throughput (24h)</p>
+        <p id="analyticsThroughput24" class="mt-4 text-3xl font-semibold text-indigo-950">0</p>
+        <p class="mt-2 text-sm text-indigo-700/80">Completed actions in last 24h</p>
+      </article>
+
+      <article class="clavis-tilt clavis-glow-border rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Avg Completion</p>
+        <p id="analyticsAvgCompletion" class="mt-4 text-3xl font-semibold text-emerald-950">0m</p>
+        <p class="mt-2 text-sm text-emerald-700/80">Average time to completion</p>
+      </article>
+
+      <article class="clavis-tilt clavis-glow-border rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Escalation Pressure</p>
+        <p id="analyticsEscalationRate" class="mt-4 text-3xl font-semibold text-amber-950">0%</p>
+        <p class="mt-2 text-sm text-amber-700/80">Overdue vs throughput ratio</p>
+      </article>
+
+      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">SLA Compliance</p>
+        <p id="analyticsSlaRate" class="mt-4 text-3xl font-semibold text-slate-900">0%</p>
+        <p id="analyticsSlaSub" class="mt-2 text-sm text-slate-500">0 compliant / 0 tracked</p>
+      </article>
+    </section>
+
+    <section class="grid gap-6 lg:grid-cols-12">
+      <article class="lg:col-span-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Volume Trend</p>
+            <h3 class="text-lg font-semibold text-slate-800">Department Throughput</h3>
+          </div>
+          <select id="analyticsRange" class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100">
+            <option value="last_24h">Last 24h</option>
+            <option value="last_7d">Last 7d</option>
+            <option value="last_30d">Last 30d</option>
+          </select>
+        </div>
+        <div id="analyticsThroughputList" class="mt-5 space-y-3"></div>
+      </article>
+
+      <article class="lg:col-span-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Bottlenecks</p>
+            <h3 class="text-lg font-semibold text-slate-800">Overdue by Department</h3>
+          </div>
+          <button id="analyticsExport" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Export CSV</button>
+        </div>
+        <div id="analyticsBottlenecks" class="mt-5 space-y-3"></div>
+      </article>
+    </section>
+
+    <section class="grid gap-6 lg:grid-cols-2">
+      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">SLA by Priority</p>
+        <h3 class="text-lg font-semibold text-slate-800">Compliance Segments</h3>
+        <div class="mt-4 overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-200 text-sm">
+            <thead class="bg-slate-50">
+              <tr>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Priority</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Compliant</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Total</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Rate</th>
+              </tr>
+            </thead>
+            <tbody id="analyticsSlaPriorityBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Avg Completion by Type</p>
+        <h3 class="text-lg font-semibold text-slate-800">Action Performance</h3>
+        <div class="mt-4 overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-200 text-sm">
+            <thead class="bg-slate-50">
+              <tr>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Action Type</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Average</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Count</th>
+              </tr>
+            </thead>
+            <tbody id="analyticsCompletionBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  </section>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+  const analyticsState = {
+    payload: null,
+    range: 'last_24h'
+  };
+
+  function fmtNumber(value) {
+    const num = Number(value || 0);
+    return Number.isFinite(num) ? num.toLocaleString() : '0';
+  }
+
+  function renderThroughputList() {
+    const host = document.getElementById('analyticsThroughputList');
+    const payload = analyticsState.payload;
+    if (!host || !payload) return;
+
+    const rows = payload.department_throughput || [];
+    if (!rows.length) {
+      host.innerHTML = '<p class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">No throughput data available.</p>';
+      return;
+    }
+
+    const key = analyticsState.range;
+    const maxValue = Math.max(...rows.map((row) => Number(row[key] || 0)), 1);
+    host.innerHTML = rows.map((row) => {
+      const value = Number(row[key] || 0);
+      const width = Math.max(6, Math.round((value / maxValue) * 100));
+      return `
+        <div class="space-y-1">
+          <div class="flex items-center justify-between text-sm">
+            <span class="font-medium text-slate-700">${row.department}</span>
+            <span class="text-slate-500">${value}</span>
+          </div>
+          <div class="h-2.5 rounded-full bg-slate-100">
+            <div class="h-2.5 rounded-full bg-indigo-500" style="width:${width}%"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderBottlenecks() {
+    const host = document.getElementById('analyticsBottlenecks');
+    const payload = analyticsState.payload;
+    if (!host || !payload) return;
+
+    const rows = payload.bottlenecks || [];
+    if (!rows.length) {
+      host.innerHTML = '<p class="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm font-semibold text-emerald-700">No current bottlenecks.</p>';
+      return;
+    }
+
+    host.innerHTML = rows.map((row) => `
+      <div class="rounded-xl border border-rose-200 bg-rose-50 p-3">
+        <p class="text-sm font-semibold text-rose-700">${row.department}</p>
+        <p class="mt-1 text-xs text-rose-600">${row.overdue_count} overdue action(s)</p>
+      </div>
+    `).join('');
+  }
+
+  function renderSlaTable() {
+    const body = document.getElementById('analyticsSlaPriorityBody');
+    const payload = analyticsState.payload;
+    if (!body || !payload) return;
+
+    const rows = (payload.sla_compliance && payload.sla_compliance.by_priority) ? payload.sla_compliance.by_priority : [];
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="4" class="px-3 py-8 text-center text-sm text-slate-500">No SLA segment data available.</td></tr>';
+      return;
+    }
+
+    body.innerHTML = rows.map((row) => {
+      const rate = Number(row.rate || 0);
+      const tone = rate >= 90 ? 'text-emerald-700' : rate >= 75 ? 'text-amber-700' : 'text-rose-700';
+      return `
+        <tr class="hover:bg-slate-50/80">
+          <td class="px-3 py-2 font-medium text-slate-700">${row.priority}</td>
+          <td class="px-3 py-2 text-slate-600">${fmtNumber(row.compliant)}</td>
+          <td class="px-3 py-2 text-slate-600">${fmtNumber(row.total)}</td>
+          <td class="px-3 py-2 font-semibold ${tone}">${rate.toFixed(2)}%</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function renderCompletionTable() {
+    const body = document.getElementById('analyticsCompletionBody');
+    const payload = analyticsState.payload;
+    if (!body || !payload) return;
+
+    const rows = payload.avg_completion_minutes || [];
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="3" class="px-3 py-8 text-center text-sm text-slate-500">No completion performance data available.</td></tr>';
+      return;
+    }
+
+    body.innerHTML = rows.map((row) => `
+      <tr class="hover:bg-slate-50/80">
+        <td class="px-3 py-2 font-medium text-slate-700">${row.action_type}</td>
+        <td class="px-3 py-2 text-slate-600">${Number(row.avg_minutes || 0).toFixed(1)}m</td>
+        <td class="px-3 py-2 text-slate-600">${fmtNumber(row.count)}</td>
+      </tr>
+    `).join('');
+  }
+
+  function renderMetrics() {
+    const payload = analyticsState.payload;
+    if (!payload) return;
+
+    const throughputRows = payload.department_throughput || [];
+    const throughput24 = throughputRows.reduce((sum, row) => sum + Number(row.last_24h || 0), 0);
+
+    const completionRows = payload.avg_completion_minutes || [];
+    const weightedSum = completionRows.reduce((sum, row) => sum + (Number(row.avg_minutes || 0) * Number(row.count || 0)), 0);
+    const weightedCount = completionRows.reduce((sum, row) => sum + Number(row.count || 0), 0);
+    const avgCompletion = weightedCount ? (weightedSum / weightedCount) : 0;
+
+    const bottleneckRows = payload.bottlenecks || [];
+    const overdueCount = bottleneckRows.reduce((sum, row) => sum + Number(row.overdue_count || 0), 0);
+    const escalationRate = throughput24 ? ((overdueCount / throughput24) * 100) : 0;
+
+    const overall = payload.sla_compliance && payload.sla_compliance.overall ? payload.sla_compliance.overall : { compliant: 0, total: 0, rate: 0 };
+
+    document.getElementById('analyticsThroughput24').textContent = fmtNumber(throughput24);
+    document.getElementById('analyticsAvgCompletion').textContent = avgCompletion.toFixed(1) + 'm';
+    document.getElementById('analyticsEscalationRate').textContent = escalationRate.toFixed(1) + '%';
+    document.getElementById('analyticsSlaRate').textContent = Number(overall.rate || 0).toFixed(2) + '%';
+    document.getElementById('analyticsSlaSub').textContent = fmtNumber(overall.compliant || 0) + ' compliant / ' + fmtNumber(overall.total || 0) + ' tracked';
+  }
+
+  function exportAnalyticsCsv() {
+    if (!analyticsState.payload) return;
+
+    const lines = [];
+    lines.push('section,department,last_24h,last_7d,last_30d,overdue_count');
+
+    const throughput = analyticsState.payload.department_throughput || [];
+    const bottleneckMap = {};
+    (analyticsState.payload.bottlenecks || []).forEach((row) => {
+      bottleneckMap[row.department] = row.overdue_count;
+    });
+
+    throughput.forEach((row) => {
+      lines.push([
+        'department_throughput',
+        row.department,
+        row.last_24h,
+        row.last_7d,
+        row.last_30d,
+        bottleneckMap[row.department] || 0
+      ].map((value) => '"' + String(value).replace(/"/g, '""') + '"').join(','));
+    });
+
+    lines.push('');
+    lines.push('priority,compliant,total,rate');
+    (analyticsState.payload.sla_compliance?.by_priority || []).forEach((row) => {
+      lines.push([
+        row.priority,
+        row.compliant,
+        row.total,
+        row.rate
+      ].map((value) => '"' + String(value).replace(/"/g, '""') + '"').join(','));
+    });
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'analytics-export.csv';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    showToast('Analytics CSV exported', 'success');
+  }
+
+  async function loadAnalytics() {
+    const response = await fetch('/analytics');
+
+    if (response.status === 403) {
+      document.getElementById('analyticsAccessMessage').classList.remove('hidden');
+      document.getElementById('analyticsContent').classList.add('hidden');
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error('Analytics fetch failed with ' + response.status);
+    }
+
+    analyticsState.payload = await response.json();
+    document.getElementById('analyticsAccessMessage').classList.add('hidden');
+    document.getElementById('analyticsContent').classList.remove('hidden');
+
+    renderMetrics();
+    renderThroughputList();
+    renderBottlenecks();
+    renderSlaTable();
+    renderCompletionTable();
+  }
+
+  document.getElementById('analyticsRange')?.addEventListener('change', function(event) {
+    analyticsState.range = event.target.value;
+    renderThroughputList();
+  });
+
+  document.getElementById('analyticsExport')?.addEventListener('click', exportAnalyticsCsv);
+  document.getElementById('analyticsExportHero')?.addEventListener('click', exportAnalyticsCsv);
+
+  loadAnalytics().catch((error) => {
+    showToast('Failed to load analytics: ' + error.message, 'error');
+  });
+
+  setInterval(function() {
+    if (document.visibilityState === 'visible') {
+      loadAnalytics().catch(() => {});
+    }
+  }, 25000);
+</script>
+{% endblock %}

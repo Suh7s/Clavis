@@ -1,74 +1,81 @@
 {% extends "base.html" %}
 {% block title %}Clavis — Login{% endblock %}
 {% block content %}
-<div class="max-w-md mx-auto bg-white border rounded-xl p-6">
-  <h1 class="text-2xl font-bold text-gray-800 mb-1">Sign In</h1>
-  <p class="text-sm text-gray-500 mb-5">Use a demo role to run the DPR flow.</p>
-
-  <form id="loginForm" class="space-y-3">
-    <div>
-      <label class="block text-xs text-gray-500 mb-1">Email</label>
-      <input id="email" required class="w-full border rounded px-3 py-2 text-sm" placeholder="doctor@clavis.local">
+<div class="space-y-6">
+  <section class="clavis-login-hero relative rounded-2xl border border-slate-200 bg-gradient-to-br from-indigo-600 to-teal-700 p-8 text-white shadow-xl">
+    <div class="clavis-particles" aria-hidden="true">
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
     </div>
-    <div>
-      <label class="block text-xs text-gray-500 mb-1">Password</label>
-      <input id="password" type="password" required class="w-full border rounded px-3 py-2 text-sm" placeholder="••••••••">
+    <div class="relative z-10">
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/75">Clinical Workflow Orchestration</p>
+      <h1 class="clavis-shimmer-text mt-3 text-4xl font-semibold">Clavis Command Interface</h1>
+      <p class="mt-3 max-w-2xl text-sm text-white/85">Coordinate triage, medication, diagnostics, referrals, and audit-ready operations from one immersive realtime workspace.<span class="clavis-cursor" aria-hidden="true">|</span></p>
     </div>
-    <button type="submit" class="w-full bg-blue-600 text-white rounded px-3 py-2 text-sm hover:bg-blue-700">
-      Login
-    </button>
-    <p id="error" class="text-sm text-red-600 hidden"></p>
-  </form>
-</div>
+  </section>
 
-<div class="max-w-md mx-auto mt-4 bg-white border rounded-xl p-4">
-  <h2 class="font-semibold text-gray-700 mb-2">Demo Credentials</h2>
-  <div class="text-sm text-gray-600 space-y-1">
-    <div>Doctor: <code>doctor@clavis.local / doctor123</code></div>
-    <div>Nurse: <code>nurse@clavis.local / nurse123</code></div>
-    <div>Pharmacy: <code>pharmacy@clavis.local / pharmacy123</code></div>
-    <div>Lab: <code>lab@clavis.local / lab123</code></div>
-    <div>Radiology: <code>radiology@clavis.local / radiology123</code></div>
-    <div>Admin: <code>admin@clavis.local / admin123</code></div>
-  </div>
-</div>
+  <section class="grid gap-6 lg:grid-cols-5">
+    <div class="clavis-tilt clavis-glow-border rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-3">
+      <h2 class="text-2xl font-semibold text-slate-800">Sign In</h2>
+      <p class="mt-1 text-sm text-slate-500">Use a demo role to explore end-to-end clinical execution.</p>
 
+      <form id="loginForm" class="mt-5 space-y-4">
+        <div>
+          <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Email</label>
+          <input id="email" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100" placeholder="doctor@clavis.local">
+        </div>
+        <div>
+          <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Password</label>
+          <input id="password" type="password" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100" placeholder="••••••••">
+        </div>
+        <button type="submit" class="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+          Enter Workspace
+        </button>
+        <p id="error" class="hidden text-sm text-red-600"></p>
+      </form>
+    </div>
+
+    <aside class="clavis-tilt clavis-glow-border rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+      <h3 class="text-lg font-semibold text-slate-800">Demo Credentials</h3>
+      <p class="mt-1 text-sm text-slate-500">Choose any role to validate permissions and queue routing.</p>
+      <div class="mt-4 space-y-2 text-sm text-slate-600">
+        <div><span class="font-semibold">Doctor</span>: <code>doctor@clavis.local / doctor123</code></div>
+        <div><span class="font-semibold">Nurse</span>: <code>nurse@clavis.local / nurse123</code></div>
+        <div><span class="font-semibold">Pharmacy</span>: <code>pharmacy@clavis.local / pharmacy123</code></div>
+        <div><span class="font-semibold">Lab</span>: <code>lab@clavis.local / lab123</code></div>
+        <div><span class="font-semibold">Radiology</span>: <code>radiology@clavis.local / radiology123</code></div>
+        <div><span class="font-semibold">Admin</span>: <code>admin@clavis.local / admin123</code></div>
+      </div>
+    </aside>
+  </section>
+</div>
+{% endblock %}
+{% block page_scripts %}
 <script>
-function homeForRole(role) {
-  const routes = {
-    doctor: '/',
-    admin: '/',
-    nurse: '/departments/Nursing/view',
-    pharmacist: '/departments/Pharmacy/view',
-    lab_tech: '/departments/Laboratory/view',
-    radiologist: '/departments/Radiology/view',
-  };
-  return routes[role] || '/';
-}
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorEl = document.getElementById('error');
+    errorEl.classList.add('hidden');
 
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const errorEl = document.getElementById('error');
-  errorEl.classList.add('hidden');
+    const res = await fetch('/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        email: document.getElementById('email').value.trim(),
+        password: document.getElementById('password').value,
+      })
+    });
 
-  const res = await fetch('/auth/login', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      email: document.getElementById('email').value.trim(),
-      password: document.getElementById('password').value,
-    })
+    if (!res.ok) {
+      errorEl.textContent = 'Invalid credentials';
+      errorEl.classList.remove('hidden');
+      showToast('Login failed', 'error');
+      return;
+    }
+
+    const payload = await res.json();
+    setAuthSession(payload.access_token, payload.user);
+    showToast('Signed in', 'success', 1600);
+    location.href = homeForRole(payload.user?.role);
   });
-
-  if (!res.ok) {
-    errorEl.textContent = 'Invalid credentials';
-    errorEl.classList.remove('hidden');
-    return;
-  }
-
-  const payload = await res.json();
-  setAuthSession(payload.access_token, payload.user);
-  location.href = homeForRole(payload.user?.role);
-});
 </script>
 {% endblock %}

@@ -1,22 +1,41 @@
 from datetime import datetime
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
 from database import get_session
-from models import ActionEvent, ClinicalAction, CustomActionType, Patient, User
-from services.auth import get_current_user
+from models import (
+    ActionEvent, AdmissionStatus, ClinicalAction, CustomActionType,
+    Patient, PatientTransfer, User, UserRole,
+)
+from services.auth import get_current_user, require_roles
 from services.sla import is_action_overdue, is_terminal_state
 from services.workflow import primary_queue_department, queue_departments_for_action
 
 router = APIRouter(prefix="/patients", tags=["patients"])
+
+requires_doctor_or_admin = require_roles(UserRole.DOCTOR, UserRole.ADMIN)
 
 
 class PatientCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     age: int = Field(ge=0, le=130)
     gender: str = Field(min_length=1, max_length=32)
+    blood_group: Optional[str] = Field(default=None, max_length=10)
+    admission_date: Optional[datetime] = None
+    ward: Optional[str] = Field(default=None, max_length=64)
+    primary_doctor_id: Optional[int] = None
+
+
+class PatientUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=120)
+    age: Optional[int] = Field(default=None, ge=0, le=130)
+    gender: Optional[str] = Field(default=None, min_length=1, max_length=32)
+    blood_group: Optional[str] = Field(default=None, max_length=10)
+    ward: Optional[str] = Field(default=None, max_length=64)
+    primary_doctor_id: Optional[int] = None
 
 
 def _custom_type(action: ClinicalAction, session: Session) -> CustomActionType | None:
@@ -105,7 +124,7 @@ def _latest_patient_event(patient_id: int, session: Session) -> ActionEvent | No
 def create_patient(
     body: PatientCreate,
     session: Session = Depends(get_session),
-    _current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(requires_doctor_or_admin),
 ):
     name = body.name.strip()
     gender = body.gender.strip()
@@ -114,10 +133,19 @@ def create_patient(
     if not gender:
         raise HTTPException(422, "Gender cannot be empty")
 
+    if body.primary_doctor_id is not None:
+        doctor = session.get(User, body.primary_doctor_id)
+        if not doctor:
+            raise HTTPException(422, "Primary doctor not found")
+
     patient = Patient(
         name=name,
         age=body.age,
         gender=gender,
+        blood_group=body.blood_group,
+        admission_date=body.admission_date or datetime.utcnow(),
+        ward=body.ward,
+        primary_doctor_id=body.primary_doctor_id,
     )
     session.add(patient)
     try:
@@ -133,8 +161,23 @@ def create_patient(
 def list_patients(
     session: Session = Depends(get_session),
     _current_user: User = Depends(get_current_user),
+    include_inactive: bool = Query(False),
+    search: str = Query("", max_length=120),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
 ):
-    return session.exec(select(Patient).order_by(Patient.created_at.asc())).all()
+    query = select(Patient)
+    if not include_inactive:
+        query = query.where(Patient.is_active == True)  # noqa: E712
+    if search.strip():
+        query = query.where(Patient.name.contains(search.strip()))  # type: ignore[union-attr]
+    total = len(session.exec(query).all())
+    patients = session.exec(
+        query.order_by(Patient.created_at.desc())  # type: ignore[union-attr]
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    ).all()
+    return {"patients": patients, "total": total, "page": page, "page_size": page_size}
 
 
 @router.get("/status-board")
@@ -142,7 +185,9 @@ def status_board(
     session: Session = Depends(get_session),
     _current_user: User = Depends(get_current_user),
 ):
-    patients = session.exec(select(Patient).order_by(Patient.created_at.asc())).all()
+    patients = session.exec(
+        select(Patient).where(Patient.is_active == True).order_by(Patient.created_at.desc())  # noqa: E712
+    ).all()
     rows = []
     total_overdue = 0
 
@@ -174,6 +219,7 @@ def status_board(
             {
                 "patient_id": patient.id,
                 "patient_name": patient.name,
+                "ward": patient.ward,
                 "pending": counts["pending"],
                 "in_progress": counts["in_progress"],
                 "completed": counts["completed"],
@@ -190,7 +236,30 @@ def status_board(
     }
 
 
-@router.get("/{patient_id}/timeline")
+@router.get("/staff/doctors")
+def list_doctors_for_transfer(
+    session: Session = Depends(get_session),
+    _current_user: User = Depends(get_current_user),
+):
+    users = session.exec(
+        select(User)
+        .where(User.is_active == True)  # noqa: E712
+        .where(User.role.in_([UserRole.DOCTOR, UserRole.ADMIN]))  # type: ignore[union-attr]
+        .order_by(User.name.asc())  # type: ignore[union-attr]
+    ).all()
+    return [
+        {
+            "id": user.id,
+            "name": user.name,
+            "role": user.role.value,
+            "department": user.department,
+        }
+        for user in users
+        if user.id is not None
+    ]
+
+
+@router.get("/{patient_id:int}/timeline")
 def patient_timeline(
     patient_id: int,
     session: Session = Depends(get_session),
@@ -235,7 +304,7 @@ def patient_timeline(
     return timeline
 
 
-@router.get("/{patient_id}")
+@router.get("/{patient_id:int}")
 def get_patient(
     patient_id: int,
     session: Session = Depends(get_session),
@@ -256,7 +325,7 @@ def get_patient(
     return result
 
 
-@router.get("/{patient_id}/summary")
+@router.get("/{patient_id:int}/summary")
 def patient_summary(
     patient_id: int,
     session: Session = Depends(get_session),
@@ -305,3 +374,178 @@ def patient_summary(
         "last_updated": latest_event.timestamp.isoformat() if latest_event else None,
         "summary_text": summary_text,
     }
+
+
+@router.patch("/{patient_id:int}")
+def update_patient(
+    patient_id: int,
+    body: PatientUpdate,
+    session: Session = Depends(get_session),
+    _current_user: User = Depends(requires_doctor_or_admin),
+):
+    patient = session.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(404, "Patient not found")
+
+    update_data = body.model_dump(exclude_unset=True)
+    if "primary_doctor_id" in update_data and update_data["primary_doctor_id"] is not None:
+        doctor = session.get(User, update_data["primary_doctor_id"])
+        if not doctor:
+            raise HTTPException(422, "Primary doctor not found")
+
+    for field, value in update_data.items():
+        setattr(patient, field, value)
+
+    try:
+        session.commit()
+        session.refresh(patient)
+    except Exception:
+        session.rollback()
+        raise HTTPException(500, "Failed to update patient")
+    return patient
+
+
+@router.delete("/{patient_id:int}")
+def soft_delete_patient(
+    patient_id: int,
+    session: Session = Depends(get_session),
+    _current_user: User = Depends(requires_doctor_or_admin),
+):
+    patient = session.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(404, "Patient not found")
+    patient.is_active = False
+    session.commit()
+    return {"detail": "Patient deactivated"}
+
+
+class DischargeRequest(BaseModel):
+    notes: str = Field(default="", max_length=2000)
+
+
+@router.post("/{patient_id:int}/discharge")
+def discharge_patient(
+    patient_id: int,
+    body: DischargeRequest,
+    session: Session = Depends(get_session),
+    _current_user: User = Depends(requires_doctor_or_admin),
+):
+    patient = session.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(404, "Patient not found")
+    if patient.admission_status == AdmissionStatus.DISCHARGED:
+        raise HTTPException(422, "Patient already discharged")
+
+    actions = session.exec(
+        select(ClinicalAction).where(ClinicalAction.patient_id == patient_id)
+    ).all()
+    for action in actions:
+        custom_terminal = _custom_terminal(action, session)
+        if not is_terminal_state(action.action_type, action.current_state, custom_terminal):
+            raise HTTPException(
+                422,
+                f"Cannot discharge: action #{action.id} ({action.title or 'Untitled'}) is still active",
+            )
+
+    patient.admission_status = AdmissionStatus.DISCHARGED
+    patient.discharge_date = datetime.utcnow()
+    patient.discharge_notes = body.notes.strip()
+    session.commit()
+    session.refresh(patient)
+    return patient
+
+
+class TransferRequest(BaseModel):
+    to_doctor_id: Optional[int] = None
+    to_ward: Optional[str] = Field(default=None, max_length=64)
+    reason: str = Field(default="", max_length=2000)
+
+
+@router.post("/{patient_id:int}/transfer")
+def transfer_patient(
+    patient_id: int,
+    body: TransferRequest,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(requires_doctor_or_admin),
+):
+    patient = session.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(404, "Patient not found")
+    if patient.admission_status == AdmissionStatus.DISCHARGED:
+        raise HTTPException(422, "Cannot transfer a discharged patient")
+
+    if body.to_doctor_id is not None:
+        doctor = session.get(User, body.to_doctor_id)
+        if not doctor:
+            raise HTTPException(422, "Target doctor not found")
+
+    transfer = PatientTransfer(
+        patient_id=patient_id,
+        from_doctor_id=patient.primary_doctor_id,
+        to_doctor_id=body.to_doctor_id,
+        from_ward=patient.ward,
+        to_ward=body.to_ward,
+        reason=body.reason.strip(),
+        transferred_by=current_user.id,
+    )
+    session.add(transfer)
+
+    if body.to_doctor_id is not None:
+        patient.primary_doctor_id = body.to_doctor_id
+    if body.to_ward is not None:
+        patient.ward = body.to_ward
+    patient.admission_status = AdmissionStatus.TRANSFERRED
+
+    session.commit()
+    session.refresh(transfer)
+
+    result = transfer.model_dump()
+    result["from_doctor_name"] = None
+    result["to_doctor_name"] = None
+    if transfer.from_doctor_id:
+        from_doc = session.get(User, transfer.from_doctor_id)
+        if from_doc:
+            result["from_doctor_name"] = from_doc.name
+    if transfer.to_doctor_id:
+        to_doc = session.get(User, transfer.to_doctor_id)
+        if to_doc:
+            result["to_doctor_name"] = to_doc.name
+    return result
+
+
+@router.get("/{patient_id:int}/transfers")
+def list_transfers(
+    patient_id: int,
+    session: Session = Depends(get_session),
+    _current_user: User = Depends(get_current_user),
+):
+    patient = session.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(404, "Patient not found")
+
+    transfers = session.exec(
+        select(PatientTransfer)
+        .where(PatientTransfer.patient_id == patient_id)
+        .order_by(PatientTransfer.created_at.asc())  # type: ignore[union-attr]
+    ).all()
+
+    user_ids = set()
+    for t in transfers:
+        if t.from_doctor_id:
+            user_ids.add(t.from_doctor_id)
+        if t.to_doctor_id:
+            user_ids.add(t.to_doctor_id)
+        user_ids.add(t.transferred_by)
+    user_map: dict[int, User] = {}
+    if user_ids:
+        users = session.exec(select(User).where(User.id.in_(sorted(user_ids)))).all()  # type: ignore[union-attr]
+        user_map = {u.id: u for u in users if u.id is not None}
+
+    result = []
+    for t in transfers:
+        data = t.model_dump()
+        data["from_doctor_name"] = user_map.get(t.from_doctor_id, None) and user_map[t.from_doctor_id].name if t.from_doctor_id else None
+        data["to_doctor_name"] = user_map.get(t.to_doctor_id, None) and user_map[t.to_doctor_id].name if t.to_doctor_id else None
+        data["transferred_by_name"] = user_map.get(t.transferred_by, None) and user_map[t.transferred_by].name
+        result.append(data)
+    return result

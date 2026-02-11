@@ -1,160 +1,277 @@
 {% extends "base.html" %}
-{% block title %}Clavis — Status Board{% endblock %}
+{% set page_title = "Status Board" %}
+{% set active_page = "status_board" %}
+{% block title %}Clavis | Status Board{% endblock %}
+
 {% block content %}
-<a href="/" class="text-sm text-blue-600 hover:underline mb-4 inline-block">&larr; Home</a>
-
-<div class="mb-6">
-  <div class="flex items-center justify-between gap-3">
-    <h1 class="text-2xl font-bold text-gray-800">Live Status Board</h1>
-    <span id="wsStatus" class="text-xs px-3 py-1.5 rounded-full bg-gray-200 text-gray-500">Connecting...</span>
-  </div>
-  <p class="text-sm text-gray-500">Hospital-wide bottlenecks, queue health, and escalations.</p>
-</div>
-
-<div id="metrics" class="grid grid-cols-3 gap-3 mb-6"></div>
-
-<div class="bg-white border rounded-lg mb-6 overflow-hidden">
-  <div class="px-4 py-3 border-b bg-gray-50">
-    <h2 class="font-semibold text-gray-700">Patient Coordination Grid</h2>
-  </div>
-  <div id="patientRows"></div>
-</div>
-
-<div class="bg-white border rounded-lg overflow-hidden">
-  <div class="px-4 py-3 border-b bg-gray-50 flex items-center justify-between">
-    <h2 class="font-semibold text-gray-700">SLA Escalations</h2>
-    <button onclick="loadBoard()" class="text-xs border rounded px-3 py-1 hover:bg-gray-100">Refresh</button>
-  </div>
-  <div id="escalationRows"></div>
-</div>
-
-<script>
-function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;',
-  }[ch]));
-}
-
-function metricCard(label, value, bg) {
-  return `
-    <div class="${bg} border rounded-lg px-4 py-3 text-center">
-      <div class="text-2xl font-bold text-gray-800">${value}</div>
-      <div class="text-xs text-gray-500">${escapeHtml(label)}</div>
-    </div>
-  `;
-}
-
-function renderPatients(rows) {
-  const el = document.getElementById('patientRows');
-  if (rows.length === 0) {
-    el.innerHTML = '<p class="text-sm text-gray-500 px-4 py-4">No patients found.</p>';
-    return;
-  }
-
-  el.innerHTML = rows.map(row => {
-    const statusClass = row.overdue > 0 ? 'text-red-700 bg-red-50 border-red-200' : 'text-green-700 bg-green-50 border-green-200';
-    return `
-      <div class="px-4 py-3 border-b last:border-b-0">
-        <div class="flex items-center justify-between gap-4">
-          <div>
-            <a href="/patients/${row.patient_id}/view" class="font-semibold text-blue-600 hover:underline">${escapeHtml(row.patient_name)}</a>
-            <p class="text-xs text-gray-500">Patient #${row.patient_id}</p>
-          </div>
-          <div class="text-xs text-gray-600 text-right">
-            <div>Pending: ${row.pending}</div>
-            <div>In Progress: ${row.in_progress}</div>
-            <div>Completed: ${row.completed}</div>
-          </div>
-          <div class="text-xs text-gray-600 text-right">
-            <div>Bottleneck: ${escapeHtml(row.bottleneck_department || 'None')}</div>
-            <div>Updated: ${row.last_updated ? new Date(row.last_updated + 'Z').toLocaleString() : '—'}</div>
-          </div>
-          <span class="text-xs font-semibold px-2 py-0.5 rounded border ${statusClass}">
-            ${row.overdue} overdue
-          </span>
-        </div>
+<div class="space-y-6">
+  <section class="clavis-page-hero clavis-hero-section rounded-2xl border border-slate-200 p-5 shadow-sm">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Global Operations</p>
+        <h2 class="text-2xl font-semibold text-slate-800">Hospital Workflow Overview</h2>
       </div>
-    `;
-  }).join('');
-}
+      <div class="flex items-center gap-2">
+        <button id="refreshStatusBoard" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Refresh</button>
+        <a href="/dashboard/view" class="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Back to Dashboard</a>
+      </div>
+    </div>
+  </section>
 
-function renderEscalations(rows) {
-  const el = document.getElementById('escalationRows');
-  if (rows.length === 0) {
-    el.innerHTML = '<p class="text-sm text-gray-500 px-4 py-4">No overdue actions.</p>';
-    return;
-  }
+  <section id="statusBoardKpiGrid" class="clavis-kpi-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <article class="clavis-tilt clavis-glow-border rounded-2xl border border-indigo-200 bg-indigo-50 p-5 shadow-sm">
+      <p class="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700">Total Active Cases</p>
+      <p id="statusActiveCases" class="mt-4 text-3xl font-semibold text-indigo-950">0</p>
+      <p class="mt-2 text-sm text-indigo-700/80">Patients with open actions</p>
+    </article>
 
-  el.innerHTML = rows.map(row => `
-    <div class="px-4 py-3 border-b last:border-b-0">
-      <div class="flex items-center justify-between gap-4">
+    <article class="clavis-tilt clavis-glow-border rounded-2xl border border-rose-200 bg-rose-50 p-5 shadow-sm">
+      <p class="text-xs font-semibold uppercase tracking-[0.14em] text-rose-700">Critical Watch</p>
+      <p id="statusCriticalWatch" class="mt-4 text-3xl font-semibold text-rose-950">0</p>
+      <p class="mt-2 text-sm text-rose-700/80">Overdue workflow pressure</p>
+    </article>
+
+    <article class="clavis-tilt clavis-glow-border rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+      <p class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Pending Transitions</p>
+      <p id="statusPending" class="mt-4 text-3xl font-semibold text-amber-950">0</p>
+      <p class="mt-2 text-sm text-amber-700/80">Awaiting next action state</p>
+    </article>
+
+    <article class="clavis-tilt clavis-glow-border rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+      <p class="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Completed Actions</p>
+      <p id="statusCompleted" class="mt-4 text-3xl font-semibold text-emerald-950">0</p>
+      <p class="mt-2 text-sm text-emerald-700/80">Terminal actions across patients</p>
+    </article>
+  </section>
+
+  <section class="grid gap-6 lg:grid-cols-12">
+    <article class="lg:col-span-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div class="flex items-center justify-between">
         <div>
-          <div class="font-semibold text-gray-800">${escapeHtml(row.patient_name)} - ${escapeHtml(row.title || row.action_type || row.custom_type_name || 'Untitled')}</div>
-          <p class="text-xs text-gray-500">State: ${escapeHtml(row.current_state)} | Department: ${escapeHtml(row.queue_department || row.department || '—')}</p>
-        </div>
-        <div class="text-xs text-right text-gray-600">
-          <div>Priority: ${escapeHtml(row.priority)}</div>
-          <div>SLA: ${row.sla_deadline ? new Date(row.sla_deadline + 'Z').toLocaleString() : '—'}</div>
+          <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Department Panels</p>
+          <h3 class="text-lg font-semibold text-slate-800">Live Queue Snapshot</h3>
         </div>
       </div>
+      <div id="departmentPanelGrid" class="mt-5 grid gap-4 md:grid-cols-2"></div>
+    </article>
+
+    <article class="lg:col-span-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Escalation Feed</p>
+      <h3 class="text-lg font-semibold text-slate-800">High Priority Updates</h3>
+      <div id="escalationFeed" class="mt-5 space-y-3"></div>
+      <a href="/audit-log/view" class="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Open Audit Log</a>
+    </article>
+  </section>
+
+  <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-200 text-sm">
+        <thead class="bg-slate-50">
+          <tr>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Patient</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Ward</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Pending</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">In Progress</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Completed</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Overdue</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Bottleneck</th>
+            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="statusPatientsTable" class="divide-y divide-slate-100"></tbody>
+      </table>
     </div>
-  `).join('');
-}
+  </section>
+</div>
+{% endblock %}
 
-async function loadBoard() {
-  const [boardRes, escalationRes] = await Promise.all([
-    fetch('/patients/status-board'),
-    fetch('/actions/escalations')
-  ]);
-  if (boardRes.status === 403 || escalationRes.status === 403) {
-    document.getElementById('metrics').innerHTML = '';
-    document.getElementById('patientRows').innerHTML = '<p class="text-sm text-red-600 px-4 py-4">Your role cannot access the status board.</p>';
-    document.getElementById('escalationRows').innerHTML = '';
-    return;
+{% block page_scripts %}
+<script>
+  const INITIAL_STATES = new Set(['REQUESTED', 'PRESCRIBED', 'INITIATED', 'ISSUED']);
+  const statusBoardState = { ws: null };
+
+  function badgeClass(tone) {
+    if (tone === 'rose') return 'bg-rose-100 text-rose-700';
+    if (tone === 'amber') return 'bg-amber-100 text-amber-700';
+    if (tone === 'emerald') return 'bg-emerald-100 text-emerald-700';
+    if (tone === 'indigo') return 'bg-indigo-100 text-indigo-700';
+    return 'bg-slate-100 text-slate-700';
   }
-  if (!boardRes.ok || !escalationRes.ok) {
-    document.getElementById('metrics').innerHTML = '';
-    document.getElementById('patientRows').innerHTML = '<p class="text-sm text-red-600 px-4 py-4">Status board failed to load.</p>';
-    document.getElementById('escalationRows').innerHTML = '';
-    return;
+
+  function formatRelative(iso) {
+    if (!iso) return 'Unknown';
+    const ts = new Date(iso.endsWith('Z') ? iso : iso + 'Z').getTime();
+    if (!Number.isFinite(ts)) return iso;
+    const delta = Math.max(0, Date.now() - ts);
+    const mins = Math.floor(delta / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + 'h ago';
+    return Math.floor(hrs / 24) + 'd ago';
   }
-  const board = await boardRes.json();
-  const escalations = await escalationRes.json();
 
-  document.getElementById('metrics').innerHTML = [
-    metricCard('Patients', board.total_patients, 'bg-white'),
-    metricCard('Overdue Actions', board.overdue_actions, board.overdue_actions > 0 ? 'bg-red-50' : 'bg-white'),
-    metricCard('Escalations', escalations.length, escalations.length > 0 ? 'bg-amber-50' : 'bg-white'),
-  ].join('');
+  function renderDepartmentPanels(actions) {
+    const host = document.getElementById('departmentPanelGrid');
+    if (!host) return;
 
-  renderPatients(board.patients || []);
-  renderEscalations(escalations || []);
-}
+    const nonTerminal = (actions || []).filter((action) => !action.is_terminal);
+    if (!nonTerminal.length) {
+      host.innerHTML = '<p class="col-span-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">No active queue actions right now.</p>';
+      return;
+    }
 
-const wsEl = document.getElementById('wsStatus');
-let ws;
-function connectWS() {
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const token = getAuthToken() || '';
-  ws = new WebSocket(`${proto}//${location.host}/ws/status-board?token=${encodeURIComponent(token)}`);
-  ws.onopen = () => {
-    wsEl.textContent = 'Live';
-    wsEl.className = 'text-xs px-3 py-1.5 rounded-full bg-green-100 text-green-700';
-  };
-  ws.onmessage = () => loadBoard();
-  ws.onclose = () => {
-    wsEl.textContent = 'Reconnecting...';
-    wsEl.className = 'text-xs px-3 py-1.5 rounded-full bg-amber-100 text-amber-700';
-    setTimeout(connectWS, 2000);
-  };
-}
+    const stats = {};
+    nonTerminal.forEach((action) => {
+      const dept = action.queue_department || action.department || 'Unknown';
+      if (!stats[dept]) stats[dept] = { queued: 0, active: 0, overdue: 0 };
+      const key = String(action.current_state || '').toUpperCase();
+      if (INITIAL_STATES.has(key)) {
+        stats[dept].queued += 1;
+      } else {
+        stats[dept].active += 1;
+      }
+      if (action.is_overdue) stats[dept].overdue += 1;
+    });
 
-connectWS();
-loadBoard();
-setInterval(loadBoard, 15000);
+    const sorted = Object.entries(stats).sort((a, b) => (b[1].queued + b[1].active) - (a[1].queued + a[1].active));
+    host.innerHTML = sorted.map(([dept, row]) => {
+      const tone = row.overdue > 0 ? 'rose' : row.queued > row.active ? 'amber' : 'emerald';
+      const health = row.overdue > 0 ? 'Critical' : row.queued > row.active ? 'Watch' : 'Stable';
+      return `
+        <div class="rounded-2xl border border-slate-200 p-4">
+          <div class="flex items-center justify-between">
+            <p class="text-sm font-semibold text-slate-700">${dept}</p>
+            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${badgeClass(tone)}">${health}</span>
+          </div>
+          <div class="mt-4 grid grid-cols-3 gap-2 text-center">
+            <div class="rounded-xl bg-slate-50 p-2"><p class="text-xs text-slate-500">Queued</p><p class="text-sm font-semibold text-slate-700">${row.queued}</p></div>
+            <div class="rounded-xl bg-slate-50 p-2"><p class="text-xs text-slate-500">In Progress</p><p class="text-sm font-semibold text-slate-700">${row.active}</p></div>
+            <div class="rounded-xl bg-slate-50 p-2"><p class="text-xs text-slate-500">Overdue</p><p class="text-sm font-semibold text-slate-700">${row.overdue}</p></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderEscalationFeed(items) {
+    const host = document.getElementById('escalationFeed');
+    if (!host) return;
+
+    if (!items || !items.length) {
+      host.innerHTML = '<p class="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm font-semibold text-emerald-700">No active escalations.</p>';
+      return;
+    }
+
+    host.innerHTML = items.slice(0, 8).map((item) => {
+      const title = item.title || item.action_type || 'Critical workflow item';
+      const patientLabel = item.patient_name || ('Patient #' + item.patient_id);
+      const detail = (item.queue_department || item.department || 'Unknown Department') + ' · ' + formatRelative(item.updated_at || item.created_at || item.sla_deadline);
+      return `
+        <div class="rounded-xl border border-rose-200 bg-rose-50 p-3">
+          <p class="text-sm font-semibold text-rose-700">${title}</p>
+          <p class="mt-1 text-xs text-rose-600">${patientLabel}</p>
+          <p class="mt-1 text-xs text-rose-500">${detail}</p>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderPatientTable(rows) {
+    const tbody = document.getElementById('statusPatientsTable');
+    if (!tbody) return;
+
+    if (!rows || !rows.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-12 text-center text-sm text-slate-500">No active patients available for status board.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = rows.map((row) => {
+      const bottleneck = row.bottleneck_department || 'None';
+      const bottleneckTone = row.overdue > 0 ? 'rose' : bottleneck === 'None' ? 'emerald' : 'amber';
+      return `
+        <tr class="hover:bg-slate-50/80">
+          <td class="px-4 py-3 font-medium text-slate-700">${row.patient_name}</td>
+          <td class="px-4 py-3 text-slate-600">${row.ward || '-'}</td>
+          <td class="px-4 py-3 text-slate-600">${row.pending}</td>
+          <td class="px-4 py-3 text-slate-600">${row.in_progress}</td>
+          <td class="px-4 py-3 text-slate-600">${row.completed}</td>
+          <td class="px-4 py-3"><span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${badgeClass(row.overdue > 0 ? 'rose' : 'emerald')}">${row.overdue}</span></td>
+          <td class="px-4 py-3"><span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${badgeClass(bottleneckTone)}">${bottleneck}</span></td>
+          <td class="px-4 py-3 text-right"><a href="/patients/${row.patient_id}/view" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Open</a></td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  async function loadStatusBoard() {
+    try {
+      const [boardResponse, escalationsResponse, actionsResponse] = await Promise.all([
+        fetch('/patients/status-board'),
+        fetch('/actions/escalations'),
+        fetch('/actions')
+      ]);
+
+      if (!boardResponse.ok) {
+        throw new Error('Status board fetch failed with ' + boardResponse.status);
+      }
+
+      const board = await boardResponse.json();
+      const escalations = escalationsResponse.ok ? await escalationsResponse.json() : [];
+      const actions = actionsResponse.ok ? await actionsResponse.json() : [];
+
+      const rows = board.patients || [];
+      const totalActiveCases = rows.filter((row) => (row.pending + row.in_progress) > 0).length;
+      const pendingTransitions = rows.reduce((sum, row) => sum + Number(row.pending || 0), 0);
+      const completed = rows.reduce((sum, row) => sum + Number(row.completed || 0), 0);
+
+      document.getElementById('statusActiveCases').textContent = String(totalActiveCases);
+      document.getElementById('statusCriticalWatch').textContent = String(board.overdue_actions || 0);
+      document.getElementById('statusPending').textContent = String(pendingTransitions);
+      document.getElementById('statusCompleted').textContent = String(completed);
+
+      renderDepartmentPanels(Array.isArray(actions) ? actions : []);
+      renderEscalationFeed(Array.isArray(escalations) ? escalations : []);
+      renderPatientTable(rows);
+    } catch (error) {
+      showToast('Failed to load status board: ' + error.message, 'error');
+    }
+  }
+
+  function connectStatusBoardSocket() {
+    const token = getAuthToken();
+    if (!token) return;
+
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = proto + '//' + location.host + '/ws/status-board?token=' + encodeURIComponent(token);
+
+    try {
+      statusBoardState.ws = new WebSocket(wsUrl);
+      statusBoardState.ws.onmessage = function(event) {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload && payload.event === 'sla_check') {
+            showToast('SLA check update: ' + (payload.overdue_count || 0) + ' overdue actions', 'warning');
+          }
+        } catch (_err) {}
+        loadStatusBoard();
+      };
+      statusBoardState.ws.onclose = function() {
+        setTimeout(connectStatusBoardSocket, 2500);
+      };
+    } catch (_err) {
+      showToast('Status board realtime connection unavailable', 'warning');
+    }
+  }
+
+  document.getElementById('refreshStatusBoard')?.addEventListener('click', loadStatusBoard);
+
+  loadStatusBoard();
+  connectStatusBoardSocket();
+  setInterval(function() {
+    if (document.visibilityState === 'visible') {
+      loadStatusBoard();
+    }
+  }, 20000);
 </script>
 {% endblock %}

@@ -98,7 +98,14 @@ def run_seed(seed_actions: bool = False, seed_patient: bool = False):
 
         patient: Patient | None = None
         if seed_patient or seed_actions:
-            patient = Patient(name="Demo Patient", age=58, gender="Male")
+            patient = Patient(
+                name="Demo Patient",
+                age=58,
+                gender="Male",
+                blood_group="O+",
+                ward="General Ward A",
+                primary_doctor_id=doctor.id,
+            )
             session.add(patient)
             session.commit()
             session.refresh(patient)

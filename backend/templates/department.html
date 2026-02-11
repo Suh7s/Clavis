@@ -1,201 +1,400 @@
 {% extends "base.html" %}
-{% block title %}Clavis — {{ department }} Queue{% endblock %}
+{% set page_title = "Department Queue" %}
+{% set active_page = "department" %}
+{% block title %}Clavis | Department Queue{% endblock %}
+
 {% block content %}
-<a href="/" class="text-sm text-blue-600 hover:underline mb-4 inline-block">&larr; Home</a>
-
-<div class="flex items-center justify-between mb-4">
-  <div>
-    <h1 class="text-2xl font-bold text-gray-800">{{ department }} Queue</h1>
-    <p class="text-sm text-gray-500">Live operational queue for the department.</p>
-  </div>
-  <span id="wsStatus" class="text-xs px-3 py-1.5 rounded-full bg-gray-200 text-gray-500">Connecting...</span>
-</div>
-
-<div id="queueSummary" class="grid grid-cols-4 gap-3 mb-6"></div>
-<div id="queueList" class="space-y-3"></div>
-
-<script>
-const DEPARTMENT = {{ department|tojson }};
-
-const TRANSITIONS = {
-  DIAGNOSTIC:        { REQUESTED: ['SAMPLE_COLLECTED', 'PROCESSING', 'CANCELLED'], SAMPLE_COLLECTED: ['PROCESSING'], PROCESSING: ['COMPLETED', 'FAILED'] },
-  MEDICATION:        { PRESCRIBED: ['DISPENSED', 'CANCELLED'], DISPENSED: ['ADMINISTERED'] },
-  REFERRAL:          { INITIATED: ['ACKNOWLEDGED', 'CANCELLED'], ACKNOWLEDGED: ['REVIEWED'], REVIEWED: ['CLOSED'] },
-  CARE_INSTRUCTION:  { ISSUED: ['ACKNOWLEDGED', 'CANCELLED'], ACKNOWLEDGED: ['IN_PROGRESS'], IN_PROGRESS: ['COMPLETED'] },
-  VITALS_REQUEST:    { REQUESTED: ['RECORDED', 'CANCELLED'] },
-};
-
-let customTypes = [];
-let customTransitions = {};
-
-const PRIORITY_COLORS = { ROUTINE: 'bg-gray-100 text-gray-600', URGENT: 'bg-amber-100 text-amber-700', CRITICAL: 'bg-red-100 text-red-700' };
-const STATE_COLORS = {
-  COMPLETED: 'bg-green-100 text-green-700',
-  ADMINISTERED: 'bg-green-100 text-green-700',
-  CLOSED: 'bg-green-100 text-green-700',
-  RECORDED: 'bg-green-100 text-green-700',
-  CANCELLED: 'bg-gray-100 text-gray-600',
-  FAILED: 'bg-red-100 text-red-700',
-};
-
-function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;',
-  }[ch]));
-}
-
-function getNextStates(a) {
-  if (a.custom_action_type_id) {
-    const ct = customTransitions[a.custom_action_type_id];
-    return ct ? (ct[a.current_state] || []) : [];
-  }
-  return (TRANSITIONS[a.action_type] || {})[a.current_state] || [];
-}
-
-function stateBadge(state) {
-  const color = STATE_COLORS[state] || 'bg-blue-100 text-blue-700';
-  return `<span class="text-xs font-semibold px-2 py-0.5 rounded-full ${color}">${escapeHtml(state)}</span>`;
-}
-
-function priorityBadge(priority) {
-  return `<span class="text-xs font-semibold px-2 py-0.5 rounded-full ${PRIORITY_COLORS[priority]}">${escapeHtml(priority)}</span>`;
-}
-
-function displayName(a) {
-  if (a.custom_type_name) return a.custom_type_name;
-  return (a.action_type || '').replace(/_/g, ' ');
-}
-
-async function loadCustomTypes() {
-  const res = await fetch('/custom-action-types');
-  if (!res.ok) {
-    customTypes = [];
-    customTransitions = {};
-    return;
-  }
-  customTypes = await res.json();
-  customTransitions = {};
-  for (const ct of customTypes) {
-    const trans = {};
-    for (let i = 0; i < ct.states.length - 1; i++) {
-      trans[ct.states[i]] = [ct.states[i + 1]];
-    }
-    customTransitions[ct.id] = trans;
-  }
-}
-
-async function transitionAction(actionId, newState) {
-  const notes = prompt(`Notes for transition to ${newState} (optional):`) || '';
-  const res = await fetch(`/actions/${actionId}/transition`, {
-    method: 'PATCH',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ new_state: newState, notes })
-  });
-  if (!res.ok) {
-    const err = await res.json();
-    alert(err.detail || err.error || 'Transition failed');
-    return;
-  }
-}
-
-function renderSummary(actions) {
-  const overdue = actions.filter(a => a.is_overdue).length;
-  const critical = actions.filter(a => a.priority === 'CRITICAL').length;
-  const inProgress = actions.filter(a => !a.is_terminal).length;
-  document.getElementById('queueSummary').innerHTML = [
-    ['Queue Size', actions.length, 'bg-white'],
-    ['In Progress', inProgress, 'bg-blue-50'],
-    ['Critical', critical, critical ? 'bg-amber-50' : 'bg-white'],
-    ['Overdue', overdue, overdue ? 'bg-red-50' : 'bg-white'],
-  ].map(([label, value, bg]) => `
-    <div class="${bg} border rounded-lg px-4 py-3 text-center">
-      <div class="text-2xl font-bold text-gray-800">${value}</div>
-      <div class="text-xs text-gray-500">${escapeHtml(label)}</div>
-    </div>
-  `).join('');
-}
-
-async function loadQueue() {
-  const res = await fetch(`/actions/department/${encodeURIComponent(DEPARTMENT)}`);
-  if (res.status === 403) {
-    document.getElementById('queueSummary').innerHTML = '';
-    document.getElementById('queueList').innerHTML = '<p class="text-red-600 text-sm">Your role cannot access this department queue.</p>';
-    return;
-  }
-  if (!res.ok) {
-    document.getElementById('queueSummary').innerHTML = '';
-    document.getElementById('queueList').innerHTML = '<p class="text-red-600 text-sm">Failed to load department queue.</p>';
-    return;
-  }
-  const actions = await res.json();
-  renderSummary(actions);
-  const el = document.getElementById('queueList');
-
-  if (actions.length === 0) {
-    el.innerHTML = '<p class="text-gray-500 text-sm">No pending actions for this department.</p>';
-    return;
-  }
-
-  el.innerHTML = actions.map(a => {
-    const nextStates = getNextStates(a);
-    const buttons = nextStates.map(state => `
-      <button onclick="transitionAction(${a.id}, '${state}')" class="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">${state}</button>
-    `).join('');
-    const notesDisplay = a.notes ? `<p class="text-sm text-gray-500 mt-1">${escapeHtml(a.notes)}</p>` : '';
-    const patientLink = `<a href="/patients/${a.patient_id}/view" class="text-blue-600 hover:underline">Patient #${a.patient_id}</a>`;
-
-    return `
-      <div class="bg-white border rounded-lg px-5 py-4 ${a.is_overdue ? 'border-red-300 bg-red-50' : ''}">
-        <div class="flex items-start justify-between gap-4">
-          <div class="flex-1">
-            <div class="flex items-center gap-2 flex-wrap">
-              <span class="text-xs uppercase text-gray-400 tracking-wide">${escapeHtml(displayName(a))}</span>
-              ${stateBadge(a.current_state)}
-              ${priorityBadge(a.priority)}
-              ${a.is_overdue ? '<span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-600 text-white">OVERDUE</span>' : ''}
-            </div>
-            <div class="mt-1 font-semibold text-gray-800">${a.title ? escapeHtml(a.title) : '<span class="italic text-gray-400">No title</span>'}</div>
-            ${notesDisplay}
-          </div>
-          <div class="text-xs text-gray-500 text-right shrink-0">
-            <div>${patientLink}</div>
-            <div>Route: ${escapeHtml(a.queue_department || a.department)}</div>
-            <div>SLA: ${a.sla_deadline ? new Date(a.sla_deadline + 'Z').toLocaleString() : '—'}</div>
-            <div>#${a.id}</div>
-          </div>
-        </div>
-        ${buttons ? `<div class="flex gap-2 mt-3">${buttons}</div>` : ''}
+<div class="space-y-6">
+  <section class="clavis-page-hero clavis-hero-section rounded-2xl border border-slate-200 p-5 shadow-sm">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Queue Board</p>
+        <h2 id="departmentTitle" class="text-2xl font-semibold text-slate-800">Department Queue</h2>
       </div>
-    `;
-  }).join('');
-}
+      <div class="grid w-full gap-2 sm:w-auto sm:grid-cols-3">
+        <label class="inline-flex items-center gap-2 whitespace-nowrap rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600">
+          <input id="includeTerminal" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+          Include terminal
+        </label>
+        <button id="refreshQueueButton" type="button" class="whitespace-nowrap rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Refresh</button>
+        <button id="exportQueueButton" type="button" class="whitespace-nowrap rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Export Queue CSV</button>
+      </div>
+    </div>
+  </section>
 
-let ws;
-function connectWS() {
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const token = getAuthToken() || '';
-  const wsUrl = `${proto}//${location.host}/ws/department/${encodeURIComponent(DEPARTMENT)}?token=${encodeURIComponent(token)}`;
-  const wsEl = document.getElementById('wsStatus');
-  ws = new WebSocket(wsUrl);
-  ws.onopen = () => {
-    wsEl.textContent = 'Live';
-    wsEl.className = 'text-xs px-3 py-1.5 rounded-full bg-green-100 text-green-700';
-  };
-  ws.onmessage = () => { loadQueue(); };
-  ws.onclose = () => {
-    wsEl.textContent = 'Reconnecting...';
-    wsEl.className = 'text-xs px-3 py-1.5 rounded-full bg-amber-100 text-amber-700';
-    setTimeout(connectWS, 2000);
-  };
-}
+  <section id="departmentKpiGrid" class="clavis-kpi-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <article class="clavis-tilt clavis-glow-border rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+      <p class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Waiting Cases</p>
+      <p id="queueWaiting" class="mt-4 text-3xl font-semibold text-amber-950">0</p>
+      <p class="mt-2 text-sm text-amber-700/80">Initial-state queue items</p>
+    </article>
 
-loadCustomTypes().then(() => {
-  connectWS();
-  loadQueue();
-});
+    <article class="clavis-tilt clavis-glow-border rounded-2xl border border-indigo-200 bg-indigo-50 p-5 shadow-sm">
+      <p class="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700">In Progress</p>
+      <p id="queueActive" class="mt-4 text-3xl font-semibold text-indigo-950">0</p>
+      <p class="mt-2 text-sm text-indigo-700/80">Currently under processing</p>
+    </article>
+
+    <article class="clavis-tilt clavis-glow-border rounded-2xl border border-rose-200 bg-rose-50 p-5 shadow-sm">
+      <p class="text-xs font-semibold uppercase tracking-[0.14em] text-rose-700">Escalations</p>
+      <p id="queueEscalated" class="mt-4 text-3xl font-semibold text-rose-950">0</p>
+      <p class="mt-2 text-sm text-rose-700/80">SLA overdue tasks</p>
+    </article>
+
+    <article class="clavis-tilt clavis-glow-border rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+      <p class="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Avg Task Age</p>
+      <p id="queueAvgAge" class="mt-4 text-3xl font-semibold text-emerald-950">0m</p>
+      <p class="mt-2 text-sm text-emerald-700/80">Minutes since task creation</p>
+    </article>
+  </section>
+
+  <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-200 text-sm">
+        <thead class="bg-slate-50">
+          <tr>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Action ID</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Patient</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Task</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Priority</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">State</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">SLA</th>
+            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="queueTableBody" class="divide-y divide-slate-100"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+  const VALID_TRANSITIONS = {
+    DIAGNOSTIC: {
+      REQUESTED: ['SAMPLE_COLLECTED', 'PROCESSING', 'CANCELLED'],
+      SAMPLE_COLLECTED: ['PROCESSING'],
+      PROCESSING: ['COMPLETED', 'FAILED']
+    },
+    MEDICATION: {
+      PRESCRIBED: ['DISPENSED', 'CANCELLED'],
+      DISPENSED: ['ADMINISTERED']
+    },
+    REFERRAL: {
+      INITIATED: ['ACKNOWLEDGED', 'CANCELLED'],
+      ACKNOWLEDGED: ['REVIEWED'],
+      REVIEWED: ['CLOSED']
+    },
+    CARE_INSTRUCTION: {
+      ISSUED: ['ACKNOWLEDGED', 'CANCELLED'],
+      ACKNOWLEDGED: ['IN_PROGRESS'],
+      IN_PROGRESS: ['COMPLETED']
+    },
+    VITALS_REQUEST: {
+      REQUESTED: ['RECORDED', 'CANCELLED']
+    }
+  };
+
+  const INITIAL_STATES = new Set(['REQUESTED', 'PRESCRIBED', 'INITIATED', 'ISSUED']);
+
+  const departmentState = {
+    department: '{{ department if department is defined else "Emergency" }}',
+    queue: [],
+    patientsById: {},
+    customTypeById: {},
+    ws: null
+  };
+
+  function badgeClass(tone) {
+    if (tone === 'rose') return 'bg-rose-100 text-rose-700';
+    if (tone === 'amber') return 'bg-amber-100 text-amber-700';
+    if (tone === 'emerald') return 'bg-emerald-100 text-emerald-700';
+    if (tone === 'sky') return 'bg-sky-100 text-sky-700';
+    return 'bg-slate-100 text-slate-700';
+  }
+
+  function formatRelativeTime(iso) {
+    if (!iso) return '--';
+    const ts = new Date(iso.endsWith('Z') ? iso : iso + 'Z').getTime();
+    if (!Number.isFinite(ts)) return iso;
+    const diff = Math.max(0, Date.now() - ts);
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return mins + 'm';
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + 'h';
+    return Math.floor(hrs / 24) + 'd';
+  }
+
+  function formatSla(action) {
+    if (!action.sla_deadline) return '--';
+    const deadline = new Date(action.sla_deadline.endsWith('Z') ? action.sla_deadline : action.sla_deadline + 'Z').getTime();
+    if (!Number.isFinite(deadline)) return '--';
+    const delta = deadline - Date.now();
+    const mins = Math.floor(Math.abs(delta) / 60000);
+    const label = mins < 60 ? mins + 'm' : Math.floor(mins / 60) + 'h';
+    return delta < 0 ? 'Overdue by ' + label : label + ' left';
+  }
+
+  function nextStatesForAction(action) {
+    if (action.custom_action_type_id && departmentState.customTypeById[action.custom_action_type_id]) {
+      const states = departmentState.customTypeById[action.custom_action_type_id].states || [];
+      const idx = states.indexOf(action.current_state);
+      if (idx >= 0 && idx < states.length - 1) {
+        return [states[idx + 1]];
+      }
+      return [];
+    }
+
+    const actionType = String(action.action_type || '').toUpperCase();
+    const state = String(action.current_state || '').toUpperCase();
+    return (VALID_TRANSITIONS[actionType] && VALID_TRANSITIONS[actionType][state]) ? VALID_TRANSITIONS[actionType][state] : [];
+  }
+
+  function renderQueueTable() {
+    const tbody = document.getElementById('queueTableBody');
+    if (!tbody) return;
+
+    if (!departmentState.queue.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-12 text-center text-sm text-slate-500">No queue items for this department.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = departmentState.queue.map((action) => {
+      const patient = departmentState.patientsById[action.patient_id];
+      const patientName = patient ? patient.name : ('Patient #' + action.patient_id);
+      const priority = String(action.priority || 'ROUTINE').toUpperCase();
+      const priorityTone = priority === 'CRITICAL' ? 'rose' : priority === 'URGENT' ? 'amber' : 'sky';
+
+      const state = String(action.current_state || '').toUpperCase();
+      const stateTone = action.is_overdue ? 'rose' : INITIAL_STATES.has(state) ? 'amber' : 'emerald';
+
+      const transitions = nextStatesForAction(action);
+      const transitionSelector = transitions.length
+        ? `<select id="transition-${action.id}" class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 focus:border-indigo-400 focus:outline-none">${transitions.map((stateName) => `<option value="${stateName}">${stateName.replace(/_/g, ' ')}</option>`).join('')}</select>
+           <input id="transition-notes-${action.id}" class="min-w-[9rem] rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 focus:border-indigo-400 focus:outline-none" placeholder="Notes (optional)" />
+           <button type="button" onclick="applyTransition(${action.id})" class="rounded-lg bg-indigo-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-indigo-700">Apply</button>`
+        : '<span class="text-xs text-slate-400">No transition</span>';
+
+      return `
+        <tr class="hover:bg-slate-50/80">
+          <td class="px-4 py-3 font-medium text-slate-700">A-${action.id}</td>
+          <td class="px-4 py-3">
+            <p class="font-medium text-slate-700">${patientName}</p>
+            <p class="text-xs text-slate-500">#${action.patient_id}</p>
+          </td>
+          <td class="px-4 py-3 text-slate-600">${action.title || action.action_type || 'Untitled action'}</td>
+          <td class="px-4 py-3"><span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${badgeClass(priorityTone)}">${priority}</span></td>
+          <td class="px-4 py-3"><span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${badgeClass(stateTone)}">${state}</span></td>
+          <td class="px-4 py-3 text-slate-500">${formatSla(action)}</td>
+          <td class="px-4 py-3 text-right">
+            <div class="flex flex-wrap items-center justify-end gap-1.5">
+              ${transitionSelector}
+              <a href="/patients/${action.patient_id}/view" class="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50">Open</a>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function renderQueueMetrics() {
+    const waiting = departmentState.queue.filter((action) => INITIAL_STATES.has(String(action.current_state || '').toUpperCase())).length;
+    const escalated = departmentState.queue.filter((action) => !!action.is_overdue).length;
+    const active = Math.max(0, departmentState.queue.length - waiting);
+
+    const ages = departmentState.queue
+      .map((action) => {
+        const ts = new Date((action.created_at || '').endsWith('Z') ? action.created_at : String(action.created_at || '') + 'Z').getTime();
+        if (!Number.isFinite(ts)) return null;
+        return Math.max(0, Math.floor((Date.now() - ts) / 60000));
+      })
+      .filter((value) => value !== null);
+
+    const avgAge = ages.length ? Math.round(ages.reduce((sum, value) => sum + value, 0) / ages.length) : 0;
+
+    document.getElementById('queueWaiting').textContent = String(waiting);
+    document.getElementById('queueActive').textContent = String(active);
+    document.getElementById('queueEscalated').textContent = String(escalated);
+    document.getElementById('queueAvgAge').textContent = avgAge + 'm';
+  }
+
+  async function fetchAllPatients(includeInactive = false) {
+    const pageSize = 100;
+    let page = 1;
+    let all = [];
+    let total = 0;
+
+    while (true) {
+      const url = '/patients?page=' + page + '&page_size=' + pageSize + (includeInactive ? '&include_inactive=true' : '');
+      const response = await fetch(url);
+      if (!response.ok) {
+        const detail = await response.text();
+        throw new Error('Patients fetch failed (' + response.status + '): ' + detail);
+      }
+      const payload = await response.json();
+      const rows = Array.isArray(payload.patients) ? payload.patients : [];
+      all = all.concat(rows);
+      total = Number(payload.total || all.length);
+      if (!rows.length || all.length >= total) break;
+      page += 1;
+    }
+
+    return all;
+  }
+
+  async function loadReferenceData() {
+    const [patients, customTypesPayload] = await Promise.all([
+      fetchAllPatients(true),
+      fetch('/custom-action-types').then((r) => r.ok ? r.json() : [])
+    ]);
+
+    departmentState.patientsById = {};
+    (patients || []).forEach((patient) => {
+      departmentState.patientsById[patient.id] = patient;
+    });
+
+    departmentState.customTypeById = {};
+    (Array.isArray(customTypesPayload) ? customTypesPayload : []).forEach((item) => {
+      if (item && item.id) {
+        departmentState.customTypeById[item.id] = item;
+      }
+    });
+  }
+
+  async function loadDepartmentQueue() {
+    const includeTerminal = document.getElementById('includeTerminal').checked;
+    const url = '/actions/department/' + encodeURIComponent(departmentState.department) + '?include_terminal=' + (includeTerminal ? '1' : '0');
+
+    const response = await fetch(url);
+    if (response.status === 403) {
+      showToast('Access denied for this department queue', 'error');
+      departmentState.queue = [];
+      renderQueueTable();
+      renderQueueMetrics();
+      return;
+    }
+    if (!response.ok) {
+      let detail = 'Failed to load department queue';
+      try {
+        const body = await response.json();
+        detail = body.detail || body.error || detail;
+      } catch (_err) {}
+      showToast(detail, 'error');
+      return;
+    }
+
+    departmentState.queue = await response.json();
+    renderQueueTable();
+    renderQueueMetrics();
+  }
+
+  async function applyTransition(actionId) {
+    const selectEl = document.getElementById('transition-' + actionId);
+    const notesEl = document.getElementById('transition-notes-' + actionId);
+    if (!selectEl) return;
+    const newState = String(selectEl.value || '').trim();
+    const notes = String(notesEl && notesEl.value ? notesEl.value : '').trim();
+    if (!newState) return;
+
+    const response = await fetch('/actions/' + actionId + '/transition', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ new_state: newState, notes: notes })
+    });
+
+    if (!response.ok) {
+      let detail = 'Transition failed';
+      try {
+        const body = await response.json();
+        detail = body.detail || body.error || detail;
+      } catch (_err) {}
+      showToast(detail, 'error');
+      return;
+    }
+
+    showToast('Action transitioned to ' + newState, 'success');
+    await loadDepartmentQueue();
+  }
+
+  function exportQueueCsv() {
+    const header = ['action_id', 'patient_id', 'patient_name', 'title', 'priority', 'state', 'department', 'queue_department', 'is_overdue', 'sla_deadline'];
+    const lines = [header.join(',')];
+
+    departmentState.queue.forEach((action) => {
+      const patient = departmentState.patientsById[action.patient_id];
+      const row = [
+        action.id,
+        action.patient_id,
+        patient ? patient.name : '',
+        action.title || '',
+        action.priority || '',
+        action.current_state || '',
+        action.department || '',
+        action.queue_department || '',
+        action.is_overdue ? 'true' : 'false',
+        action.sla_deadline || ''
+      ].map((value) => '"' + String(value).replace(/"/g, '""') + '"');
+      lines.push(row.join(','));
+    });
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'department-' + departmentState.department.toLowerCase().replace(/\s+/g, '-') + '-queue.csv';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    showToast('Queue CSV exported', 'success');
+  }
+
+  function connectDepartmentSocket() {
+    const token = getAuthToken();
+    if (!token) return;
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = proto + '//' + location.host + '/ws/department/' + encodeURIComponent(departmentState.department) + '?token=' + encodeURIComponent(token);
+
+    try {
+      departmentState.ws = new WebSocket(wsUrl);
+      departmentState.ws.onmessage = function(event) {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload && payload.event === 'sla_overdue') {
+            showToast('SLA overdue alert in ' + departmentState.department, 'warning');
+          }
+        } catch (_err) {}
+        loadDepartmentQueue();
+      };
+      departmentState.ws.onclose = function() {
+        setTimeout(connectDepartmentSocket, 2500);
+      };
+    } catch (_err) {
+      showToast('Realtime queue updates unavailable', 'warning');
+    }
+  }
+
+  document.getElementById('departmentTitle').textContent = departmentState.department + ' Queue';
+  document.getElementById('refreshQueueButton')?.addEventListener('click', loadDepartmentQueue);
+  document.getElementById('exportQueueButton')?.addEventListener('click', exportQueueCsv);
+  document.getElementById('includeTerminal')?.addEventListener('change', loadDepartmentQueue);
+
+  window.applyTransition = applyTransition;
+
+  (async function initDepartmentPage() {
+    try {
+      await loadReferenceData();
+    } catch (error) {
+      showToast('Patient directory unavailable: ' + error.message, 'warning');
+    }
+    await loadDepartmentQueue();
+    connectDepartmentSocket();
+    setInterval(function() {
+      if (document.visibilityState === 'visible') {
+        loadDepartmentQueue();
+      }
+    }, 15000);
+  })();
 </script>
 {% endblock %}

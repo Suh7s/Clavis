@@ -2,117 +2,94 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
-
-**Clavis** is a clinical workflow orchestration engine for hospital coordination. It tracks clinical actions (diagnostics, medications, referrals, care instructions, and custom types) through enforced state machine transitions with real-time WebSocket updates and SLA deadline tracking.
-
-## Tech Stack
-
-- **Backend:** FastAPI, SQLModel, Uvicorn
-- **Database:** SQLite (local file `clavis.db`)
-- **Frontend:** Jinja2 templates, vanilla JS, Tailwind CDN
-- **Real-time:** FastAPI native WebSockets (in-memory connection store)
-- **No auth, no Redis, no Celery, no Docker**
-
 ## Commands
 
 ```bash
 # Install dependencies
 pip install fastapi sqlmodel uvicorn jinja2
 
-# Seed demo data
+# Seed demo data (run from backend/)
 cd backend && python3 seed.py
 
-# Run server
+# Run dev server (run from backend/)
 cd backend && python3 -m uvicorn main:app --reload --port 8000
 
-# Reset demo (while running)
+# Reset demo data (server must be running, requires CLAVIS_ENABLE_DEMO_RESET=1)
 curl http://localhost:8000/demo/reset
+
+# Run preflight validation checks (run from backend/)
+CLAVIS_ENABLE_DEMO_RESET=1 python3 demo/preflight_checks.py
+
+# Run automated 9-step demo (run from backend/)
+CLAVIS_ENABLE_DEMO_RESET=1 python3 demo/dpr_demo_run.py
 ```
 
-## Repository Structure
+No automated test suite exists. Validation is done via `demo/preflight_checks.py` (8 checks covering RBAC, events, WebSocket, custom types, status board) and `demo/dpr_demo_run.py` (end-to-end workflow).
 
-```
-backend/
-├── main.py                  # App entry, lifespan, template routes, health, demo reset, WS endpoint
-├── models.py                # SQLModel tables: Patient, ClinicalAction, ActionEvent, CustomActionType
-├── database.py              # SQLite engine + session dependency
-├── state_machine.py         # VALID_TRANSITIONS, validate_transition(), validate_custom_transition()
-├── ws.py                    # ConnectionManager (in-memory per patient_id)
-├── seed.py                  # Idempotent demo seeder (1 patient, 3 actions)
-├── routers/
-│   ├── patients.py          # CRUD + GET /patients/{id}/summary
-│   ├── actions.py           # Create, transition, list, timeline
-│   └── custom_types.py      # CRUD for CustomActionType
-├── services/
-│   └── sla.py               # SLA deadline computation, overdue detection, terminal state checks
-└── templates/
-    ├── base.html             # Layout + Tailwind CDN
-    ├── index.html            # Patient list + create form
-    └── patient.html          # Patient dashboard: summary, actions, transitions, timeline, WebSocket
-```
+## Environment Variables
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `CLAVIS_DB_FILE` | `backend/clavis.db` | SQLite file path |
+| `CLAVIS_AUTH_SECRET` | `clavis-dev-secret-change-me` | JWT HMAC-SHA256 signing secret |
+| `CLAVIS_TOKEN_TTL_SECONDS` | `43200` (12h) | JWT expiry |
+| `CLAVIS_ENABLE_DEMO_RESET` | unset | Must be `"1"` to enable `/demo/reset` |
+| `CLAVIS_SEED_PATIENT` / `CLAVIS_SEED_ACTIONS` | unset | Set to `"1"` to include demo patient/actions in seed |
 
 ## Architecture
 
-### State Machine
+### Request Flow
 
-Core transitions validated server-side in `state_machine.py`. Invalid transitions return 422.
+All API routers are mounted at both `/` and `/api/v1/` prefixes (including `notes.router` for patient notes). Template routes serve Jinja2 HTML at `/`, `/login`, `/patients/{id}/view`, `/departments/{department}/view`, `/status-board/view`. Auth is JWT Bearer tokens stored in `sessionStorage` on the frontend; `base.html` has a global fetch interceptor that attaches tokens and redirects to `/login` on 401.
 
-| Action Type      | Transitions                                            |
-|------------------|--------------------------------------------------------|
-| DIAGNOSTIC       | REQUESTED → SAMPLE_COLLECTED → PROCESSING → COMPLETED |
-| MEDICATION       | PRESCRIBED → DISPENSED → ADMINISTERED                  |
-| REFERRAL         | INITIATED → ACKNOWLEDGED → REVIEWED → CLOSED          |
-| CARE_INSTRUCTION | ISSUED → ACKNOWLEDGED → IN_PROGRESS → COMPLETED       |
+### Patient Management
 
-### Custom Action Types
+`GET /patients` returns paginated results `{patients, total, page, page_size}` with optional `?search=`, `?include_inactive=true`, `?page=`, `?page_size=` query params. `PATCH /patients/{id}` updates patient fields (doctor/admin). `DELETE /patients/{id}` performs soft delete (sets `is_active=False`). Notes: `POST /patients/{id}/notes` and `GET /patients/{id}/notes`.
 
-`CustomActionType` model stores an ordered `states` list (JSON). Transitions are sequential-forward only, built dynamically from the list. Custom types define their own terminal state and SLA durations per priority.
+### State Machine (`state_machine.py`)
 
-A `ClinicalAction` has either `action_type` (core enum) OR `custom_action_type_id` (FK), never both.
+Central workflow engine. `VALID_TRANSITIONS` dict maps each `ActionType` to allowed `{current_state: [next_states]}`. Transitions are validated server-side; invalid ones return 422. Custom action types build their transition map dynamically from an ordered `states` list (sequential-forward only). `TERMINAL_STATES` = {COMPLETED, ADMINISTERED, CLOSED, RECORDED, FAILED, CANCELLED}.
 
-### Event Log
+### RBAC (`services/access.py`)
 
-Every state transition appends a row to `ActionEvent`. The timeline endpoint returns events sorted by timestamp with `action_name` resolved (core enum value or custom type name).
+`roles_allowed_for_transition()` enforces per-action-type, per-state role restrictions. For example, only PHARMACIST can dispense medications, only NURSE can administer. ADMIN bypasses all department restrictions. Department queue access is gated by `DEPARTMENT_ROLE_MAP`.
 
-### SLA
+### Action Routing (`services/workflow.py`)
 
-Deadlines auto-assigned on action creation based on priority:
-- Core: ROUTINE=2h, URGENT=30m, CRITICAL=10m
-- Custom: per-type configurable minutes
+Actions auto-route to departments on creation: MEDICATION → Pharmacy, DIAGNOSTIC → Laboratory or Radiology (keyword detection on title: xray, ct, mri, ultrasound, scan), REFERRAL → Referral, CARE_INSTRUCTION/VITALS_REQUEST → Nursing. Multi-hop: medications move from Pharmacy queue (PRESCRIBED) to Nursing queue (DISPENSED).
 
-`is_overdue` computed dynamically (not stored) — checks `sla_deadline < now()` unless action is in terminal state.
+### SLA (`services/sla.py`)
 
-### WebSocket
+`is_overdue` is **always computed dynamically** (never stored in DB). Core SLA: ROUTINE=2h, URGENT=30m, CRITICAL=10m. Custom types define their own per-priority SLA minutes. Terminal states are never overdue. A background task (`_sla_checker` in `main.py`) runs every 60 seconds, broadcasting overdue actions to department and status board WebSocket channels.
 
-`ConnectionManager` in `ws.py` maintains `dict[patient_id, list[WebSocket]]`. Broadcasts on action create and transition. Frontend auto-reconnects on disconnect.
+### WebSocket (`ws.py`)
 
-## API Endpoints
+`ConnectionManager` maintains three in-memory connection pools: per-patient, per-department (case-folded keys), and global status board. Broadcasts fire on action create and transition. Frontend auto-reconnects every 2 seconds on disconnect. WS endpoints authenticate via query param token.
 
-| Method  | Endpoint                          | Purpose                              |
-|---------|-----------------------------------|--------------------------------------|
-| `GET`   | `/health`                         | Health + DB check + timestamp        |
-| `GET`   | `/demo/reset`                     | Wipe DB and re-seed                  |
-| `GET`   | `/`                               | Patient list UI                      |
-| `GET`   | `/patients/{id}/view`             | Patient dashboard UI                 |
-| `POST`  | `/patients`                       | Create patient                       |
-| `GET`   | `/patients`                       | List patients                        |
-| `GET`   | `/patients/{id}`                  | Patient + actions with `is_overdue`  |
-| `GET`   | `/patients/{id}/summary`          | Computed summary stats               |
-| `POST`  | `/actions`                        | Create action (core or custom type)  |
-| `GET`   | `/actions`                        | List all actions                     |
-| `PATCH` | `/actions/{id}/transition`        | Advance state                        |
-| `GET`   | `/actions/patients/{id}/timeline` | Chronological event log              |
-| `POST`  | `/custom-action-types`            | Create custom action type            |
-| `GET`   | `/custom-action-types`            | List custom types                    |
-| `GET`   | `/custom-action-types/{id}`       | Get custom type                      |
-| `WS`    | `/ws/patients/{id}`               | Real-time patient updates            |
+### Models (`models.py`)
 
-## Key Design Decisions
+`Patient` includes `blood_group`, `admission_date`, `ward`, `primary_doctor_id` (FK User), and `is_active` (soft delete flag). `ClinicalAction` has **mutually exclusive** `action_type` (core enum) OR `custom_action_type_id` (FK) — never both, validated on creation. `ClinicalAction.updated_at` is set on edit/transition. `ActionEvent` is append-only (immutable audit trail). `PatientNote` stores free-text clinical notes per patient (author, note_type, content). `CustomActionType.states_json` stores ordered states as a JSON string with a property accessor.
 
-- `action_type` OR `custom_action_type_id` — mutually exclusive, validated on creation
-- SLA `is_overdue` is computed dynamically, never stored in DB
-- ActionEvent is append-only — immutable audit trail
-- Priority (ROUTINE/URGENT/CRITICAL) drives SLA deadlines and UI color coding
-- Global exception handler returns `{"error": "Internal server error"}` — no stack traces leak
-- Console logging on action create, transition, and demo reset
+### Database (`database.py`)
+
+SQLite with `check_same_thread=False`. Has automatic schema rebuild: `_schema_needs_rebuild()` checks required columns and drops/recreates all tables if schema drifts. The `get_session()` dependency yields SQLModel sessions.
+
+## Coding Conventions
+
+- Python 4-space indent, PEP 8, `snake_case` functions, `PascalCase` for SQLModel classes
+- Routers go in `backend/routers/` with a module-level `router = APIRouter()` object
+- Domain logic goes in `backend/services/`
+- Templates in `backend/templates/`, extending `base.html`
+- Frontend is vanilla JS + Tailwind CDN — no build step
+- Commit style: `Clavis: <short scope>`
+
+## Demo Credentials
+
+| Role | Email | Password |
+|---|---|---|
+| Doctor | doctor@clavis.local | doctor123 |
+| Nurse | nurse@clavis.local | nurse123 |
+| Pharmacist | pharmacy@clavis.local | pharmacy123 |
+| Lab Tech | lab@clavis.local | lab123 |
+| Radiologist | radiology@clavis.local | radiology123 |
+| Admin | admin@clavis.local | admin123 |

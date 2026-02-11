@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% set page_title = "Audit Log" %}
+{% set active_page = "audit_log" %}
+{% block title %}Clavis | Audit Log{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <section id="auditAccessMessage" class="hidden rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+    <p class="text-sm font-semibold text-amber-700">Audit log access is restricted to doctor/admin roles.</p>
+    <p class="mt-1 text-sm text-amber-600">Sign in as a privileged role to review system audit trails.</p>
+  </section>
+
+  <section id="auditContent" class="space-y-6">
+    <section class="clavis-page-hero clavis-hero-section rounded-2xl border border-slate-200 p-5 shadow-sm">
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Governance Trail</p>
+          <h2 class="text-2xl font-semibold text-slate-800">System Audit Events</h2>
+          <p class="mt-1 text-sm text-slate-500">Trace every transition, actor decision, and state mutation with export-ready filters.</p>
+        </div>
+        <button id="auditExportButton" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Export Log CSV</button>
+      </div>
+    </section>
+
+    <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Query Controls</p>
+          <h2 class="text-2xl font-semibold text-slate-800">Filter Audit Stream</h2>
+        </div>
+      </div>
+
+      <form id="auditFilterForm" class="mt-4 grid gap-3 md:grid-cols-6">
+        <div>
+          <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Start Date</label>
+          <input id="filterStartDate" type="date" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+        </div>
+        <div>
+          <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">End Date</label>
+          <input id="filterEndDate" type="date" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+        </div>
+        <div>
+          <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Action Type</label>
+          <select id="filterActionType" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100">
+            <option value="">All</option>
+            <option value="DIAGNOSTIC">DIAGNOSTIC</option>
+            <option value="MEDICATION">MEDICATION</option>
+            <option value="REFERRAL">REFERRAL</option>
+            <option value="CARE_INSTRUCTION">CARE_INSTRUCTION</option>
+            <option value="VITALS_REQUEST">VITALS_REQUEST</option>
+          </select>
+        </div>
+        <div>
+          <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Department</label>
+          <input id="filterDepartment" type="text" placeholder="e.g. Radiology" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+        </div>
+        <div>
+          <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Actor ID</label>
+          <input id="filterActorId" type="number" min="1" placeholder="User ID" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+        </div>
+        <div>
+          <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Patient ID</label>
+          <input id="filterPatientId" type="number" min="1" placeholder="Patient ID" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+        </div>
+        <div class="md:col-span-6 flex flex-wrap items-center gap-2">
+          <button type="submit" class="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Apply Filters</button>
+          <button id="auditResetFilters" type="button" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Reset</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-200 text-sm">
+          <thead class="bg-slate-50">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Timestamp</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Actor</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Action</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Patient</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Department</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">State Change</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Outcome</th>
+            </tr>
+          </thead>
+          <tbody id="auditTableBody" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+
+      <div class="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <p id="auditPageInfo" class="text-sm text-slate-500">Loading events...</p>
+        <div class="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
+          <button id="auditPrev" class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100">Prev</button>
+          <span id="auditPageNumber" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white">1</span>
+          <button id="auditNext" class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100">Next</button>
+        </div>
+      </div>
+    </section>
+  </section>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+  const auditState = {
+    page: 1,
+    pageSize: 20,
+    total: 0,
+    events: []
+  };
+
+  function outcomeTone(state) {
+    const normalized = String(state || '').toUpperCase();
+    if (['FAILED', 'CANCELLED'].includes(normalized)) return 'rose';
+    if (['COMPLETED', 'ADMINISTERED', 'CLOSED', 'RECORDED'].includes(normalized)) return 'emerald';
+    return 'amber';
+  }
+
+  function badgeClass(tone) {
+    if (tone === 'rose') return 'bg-rose-100 text-rose-700';
+    if (tone === 'emerald') return 'bg-emerald-100 text-emerald-700';
+    if (tone === 'amber') return 'bg-amber-100 text-amber-700';
+    return 'bg-slate-100 text-slate-700';
+  }
+
+  function toIsoStart(dateValue) {
+    if (!dateValue) return '';
+    return dateValue + 'T00:00:00';
+  }
+
+  function toIsoEnd(dateValue) {
+    if (!dateValue) return '';
+    return dateValue + 'T23:59:59';
+  }
+
+  function buildAuditParams(includePage) {
+    const params = new URLSearchParams();
+    const startDate = toIsoStart(document.getElementById('filterStartDate').value);
+    const endDate = toIsoEnd(document.getElementById('filterEndDate').value);
+    const actionType = String(document.getElementById('filterActionType').value || '').trim();
+    const department = String(document.getElementById('filterDepartment').value || '').trim();
+    const actorId = String(document.getElementById('filterActorId').value || '').trim();
+    const patientId = String(document.getElementById('filterPatientId').value || '').trim();
+
+    if (startDate) params.set('start_date', startDate);
+    if (endDate) params.set('end_date', endDate);
+    if (actionType) params.set('action_type', actionType);
+    if (department) params.set('department', department);
+    if (actorId) params.set('actor_id', actorId);
+    if (patientId) params.set('patient_id', patientId);
+
+    if (includePage) {
+      params.set('page', String(auditState.page));
+      params.set('page_size', String(auditState.pageSize));
+    }
+
+    return params;
+  }
+
+  function renderAuditTable() {
+    const tbody = document.getElementById('auditTableBody');
+    if (!tbody) return;
+
+    if (!auditState.events.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-12 text-center text-sm text-slate-500">No audit events match the current filters.</td></tr>';
+    } else {
+      tbody.innerHTML = auditState.events.map((event) => {
+        const tone = outcomeTone(event.new_state);
+        const actor = event.actor_name || ('Actor #' + (event.actor_id || 'system'));
+        const patient = event.patient_name || ('Patient #' + (event.patient_id || '—'));
+        const transition = (event.previous_state || '--') + ' → ' + (event.new_state || '--');
+        return `
+          <tr class="hover:bg-slate-50/80">
+            <td class="px-4 py-3 text-slate-500">${new Date((event.timestamp || '').endsWith('Z') ? event.timestamp : String(event.timestamp || '') + 'Z').toLocaleString()}</td>
+            <td class="px-4 py-3 text-slate-700">${actor}</td>
+            <td class="px-4 py-3 text-slate-600">${event.action_type || event.action_title || 'EVENT'}</td>
+            <td class="px-4 py-3 text-slate-600">${patient}</td>
+            <td class="px-4 py-3 text-slate-600">${event.department || event.actor_department || '-'}</td>
+            <td class="px-4 py-3 text-slate-600">${transition}</td>
+            <td class="px-4 py-3"><span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${badgeClass(tone)}">${event.new_state || 'UPDATED'}</span></td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    const totalPages = Math.max(1, Math.ceil(auditState.total / auditState.pageSize));
+    document.getElementById('auditPageInfo').textContent = 'Showing page ' + auditState.page + ' of ' + totalPages + ' (' + auditState.total + ' total events)';
+    document.getElementById('auditPageNumber').textContent = String(auditState.page);
+    document.getElementById('auditPrev').disabled = auditState.page <= 1;
+    document.getElementById('auditNext').disabled = auditState.page >= totalPages;
+  }
+
+  async function loadAuditLog() {
+    const params = buildAuditParams(true);
+    const response = await fetch('/audit-log?' + params.toString());
+
+    if (response.status === 403) {
+      document.getElementById('auditAccessMessage').classList.remove('hidden');
+      document.getElementById('auditContent').classList.add('hidden');
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error('Audit log fetch failed with ' + response.status);
+    }
+
+    document.getElementById('auditAccessMessage').classList.add('hidden');
+    document.getElementById('auditContent').classList.remove('hidden');
+
+    const payload = await response.json();
+    auditState.events = payload.events || [];
+    auditState.total = Number(payload.total || 0);
+    renderAuditTable();
+  }
+
+  function resetAuditFilters() {
+    document.getElementById('filterStartDate').value = '';
+    document.getElementById('filterEndDate').value = '';
+    document.getElementById('filterActionType').value = '';
+    document.getElementById('filterDepartment').value = '';
+    document.getElementById('filterActorId').value = '';
+    document.getElementById('filterPatientId').value = '';
+    auditState.page = 1;
+    loadAuditLog().catch((error) => showToast('Failed to load audit log: ' + error.message, 'error'));
+  }
+
+  function exportAuditCsv() {
+    const params = buildAuditParams(false);
+    const url = '/export/audit-log/csv?' + params.toString();
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'audit-log.csv';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    showToast('Audit CSV export started', 'success');
+  }
+
+  document.getElementById('auditFilterForm')?.addEventListener('submit', function(event) {
+    event.preventDefault();
+    auditState.page = 1;
+    loadAuditLog().catch((error) => showToast('Failed to apply filters: ' + error.message, 'error'));
+  });
+
+  document.getElementById('auditResetFilters')?.addEventListener('click', resetAuditFilters);
+  document.getElementById('auditExportButton')?.addEventListener('click', exportAuditCsv);
+
+  document.getElementById('auditPrev')?.addEventListener('click', function() {
+    if (auditState.page > 1) {
+      auditState.page -= 1;
+      loadAuditLog().catch((error) => showToast('Failed to load previous page: ' + error.message, 'error'));
+    }
+  });
+
+  document.getElementById('auditNext')?.addEventListener('click', function() {
+    const totalPages = Math.max(1, Math.ceil(auditState.total / auditState.pageSize));
+    if (auditState.page < totalPages) {
+      auditState.page += 1;
+      loadAuditLog().catch((error) => showToast('Failed to load next page: ' + error.message, 'error'));
+    }
+  });
+
+  loadAuditLog().catch((error) => {
+    showToast('Failed to load audit log: ' + error.message, 'error');
+  });
+
+  setInterval(function() {
+    if (document.visibilityState === 'visible') {
+      loadAuditLog().catch(() => {});
+    }
+  }, 30000);
+</script>
+{% endblock %}

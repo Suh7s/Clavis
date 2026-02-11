@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 import sys
 
@@ -9,6 +10,8 @@ from sqlmodel import Session, select
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+os.environ.setdefault("CLAVIS_ENABLE_DEMO_RESET", "1")
 
 from database import engine  # noqa: E402
 from main import app  # noqa: E402
@@ -40,19 +43,21 @@ def run():
     radiology_headers = login_headers(client, "radiology@clavis.local", "radiology123")
     admin_headers = login_headers(client, "admin@clavis.local", "admin123")
 
-    print("3) Nurse can create patient and doctor can see same patient")
+    print("3) Doctor can create patient and nurse can see same patient")
     create_patient = client.post(
         "/patients",
-        headers=nurse_headers,
+        headers=doctor_headers,
         json={"name": "Asha Verma", "age": 41, "gender": "Female"},
     )
-    assert_status(create_patient, 201, "Create patient by nurse")
+    assert_status(create_patient, 201, "Create patient by doctor")
     patient_id = create_patient.json()["id"]
 
-    list_patients = client.get("/patients", headers=doctor_headers)
-    assert_status(list_patients, 200, "List patients for doctor")
-    if patient_id not in {item["id"] for item in list_patients.json()}:
-        raise RuntimeError("Doctor did not see nurse-created patient")
+    list_patients = client.get("/patients", headers=nurse_headers)
+    assert_status(list_patients, 200, "List patients for nurse")
+    patients_data = list_patients.json()
+    patient_list = patients_data.get("patients", patients_data) if isinstance(patients_data, dict) else patients_data
+    if patient_id not in {item["id"] for item in patient_list}:
+        raise RuntimeError("Nurse did not see doctor-created patient")
     print("[OK] Shared patient visibility")
 
     print("4) Create diagnostic action and verify initial event exists")
