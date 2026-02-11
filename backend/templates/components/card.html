@@ -6,21 +6,42 @@
   'rose': 'border-rose-200 bg-rose-50',
   'slate': 'border-slate-200 bg-white'
 } %}
+{% set label_classes = {
+  'indigo': 'text-indigo-700',
+  'emerald': 'text-emerald-700',
+  'amber': 'text-amber-700',
+  'rose': 'text-rose-700',
+  'slate': 'text-slate-500'
+} %}
+{% set value_classes = {
+  'indigo': 'text-indigo-950',
+  'emerald': 'text-emerald-950',
+  'amber': 'text-amber-950',
+  'rose': 'text-rose-950',
+  'slate': 'text-slate-900'
+} %}
+{% set subtitle_classes = {
+  'indigo': 'text-indigo-700/80',
+  'emerald': 'text-emerald-700/80',
+  'amber': 'text-amber-700/80',
+  'rose': 'text-rose-700/80',
+  'slate': 'text-slate-500'
+} %}
 {% set trend_classes = {
   'positive': 'bg-emerald-100 text-emerald-700',
   'negative': 'bg-rose-100 text-rose-700',
-  'neutral': 'bg-slate-100 text-slate-600'
+  'neutral': 'bg-slate-100 text-slate-700'
 } %}
 
 <div class="rounded-2xl border p-5 shadow-sm {{ tone_classes[tone] if tone in tone_classes else tone_classes['slate'] }}">
-  <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{{ card_label|default('Metric') }}</p>
+  <p class="text-xs font-semibold uppercase tracking-[0.14em] {{ label_classes[tone] if tone in label_classes else label_classes['slate'] }}">{{ card_label|default('Metric') }}</p>
   <div class="mt-4 flex items-end justify-between gap-3">
-    <p class="text-2xl font-semibold text-slate-800">{{ card_value|default('0') }}</p>
+    <p class="text-2xl font-semibold {{ value_classes[tone] if tone in value_classes else value_classes['slate'] }}">{{ card_value|default('0') }}</p>
     {% if card_trend %}
       <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ trend_classes[card_trend_tone|default('neutral')] if card_trend_tone|default('neutral') in trend_classes else trend_classes['neutral'] }}">{{ card_trend }}</span>
     {% endif %}
   </div>
   {% if card_subtitle %}
-    <p class="mt-3 text-sm text-slate-500">{{ card_subtitle }}</p>
+    <p class="mt-3 text-sm {{ subtitle_classes[tone] if tone in subtitle_classes else subtitle_classes['slate'] }}">{{ card_subtitle }}</p>
   {% endif %}
 </div>

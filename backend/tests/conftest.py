@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+import httpx
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel, Session, create_engine
@@ -29,9 +30,23 @@ def reset_db():
 
 
 @pytest.fixture
+def anyio_backend():
+    return "asyncio"
+
+
+@pytest.fixture
 def client():
     app.dependency_overrides[get_session] = _override_get_session
     with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+async def async_client():
+    app.dependency_overrides[get_session] = _override_get_session
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as test_client:
         yield test_client
     app.dependency_overrides.clear()
 

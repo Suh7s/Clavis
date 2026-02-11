@@ -124,7 +124,7 @@ def _latest_patient_event(patient_id: int, session: Session) -> ActionEvent | No
 def create_patient(
     body: PatientCreate,
     session: Session = Depends(get_session),
-    _current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(requires_doctor_or_admin),
 ):
     name = body.name.strip()
     gender = body.gender.strip()
@@ -173,7 +173,7 @@ def list_patients(
         query = query.where(Patient.name.contains(search.strip()))  # type: ignore[union-attr]
     total = len(session.exec(query).all())
     patients = session.exec(
-        query.order_by(Patient.created_at.asc())  # type: ignore[union-attr]
+        query.order_by(Patient.created_at.desc())  # type: ignore[union-attr]
         .offset((page - 1) * page_size)
         .limit(page_size)
     ).all()
@@ -186,7 +186,7 @@ def status_board(
     _current_user: User = Depends(get_current_user),
 ):
     patients = session.exec(
-        select(Patient).where(Patient.is_active == True).order_by(Patient.created_at.asc())  # noqa: E712
+        select(Patient).where(Patient.is_active == True).order_by(Patient.created_at.desc())  # noqa: E712
     ).all()
     rows = []
     total_overdue = 0
@@ -259,7 +259,7 @@ def list_doctors_for_transfer(
     ]
 
 
-@router.get("/{patient_id}/timeline")
+@router.get("/{patient_id:int}/timeline")
 def patient_timeline(
     patient_id: int,
     session: Session = Depends(get_session),
@@ -304,7 +304,7 @@ def patient_timeline(
     return timeline
 
 
-@router.get("/{patient_id}")
+@router.get("/{patient_id:int}")
 def get_patient(
     patient_id: int,
     session: Session = Depends(get_session),
@@ -325,7 +325,7 @@ def get_patient(
     return result
 
 
-@router.get("/{patient_id}/summary")
+@router.get("/{patient_id:int}/summary")
 def patient_summary(
     patient_id: int,
     session: Session = Depends(get_session),
@@ -376,7 +376,7 @@ def patient_summary(
     }
 
 
-@router.patch("/{patient_id}")
+@router.patch("/{patient_id:int}")
 def update_patient(
     patient_id: int,
     body: PatientUpdate,
@@ -405,7 +405,7 @@ def update_patient(
     return patient
 
 
-@router.delete("/{patient_id}")
+@router.delete("/{patient_id:int}")
 def soft_delete_patient(
     patient_id: int,
     session: Session = Depends(get_session),
@@ -423,7 +423,7 @@ class DischargeRequest(BaseModel):
     notes: str = Field(default="", max_length=2000)
 
 
-@router.post("/{patient_id}/discharge")
+@router.post("/{patient_id:int}/discharge")
 def discharge_patient(
     patient_id: int,
     body: DischargeRequest,
@@ -461,7 +461,7 @@ class TransferRequest(BaseModel):
     reason: str = Field(default="", max_length=2000)
 
 
-@router.post("/{patient_id}/transfer")
+@router.post("/{patient_id:int}/transfer")
 def transfer_patient(
     patient_id: int,
     body: TransferRequest,
@@ -513,7 +513,7 @@ def transfer_patient(
     return result
 
 
-@router.get("/{patient_id}/transfers")
+@router.get("/{patient_id:int}/transfers")
 def list_transfers(
     patient_id: int,
     session: Session = Depends(get_session),

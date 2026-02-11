@@ -16,46 +16,83 @@
           <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35M16 10a6 6 0 1 1-12 0 6 6 0 0 1 12 0Z" />
           </svg>
-          <input type="search" name="search" value="{{ request.query_params.get('search', '') if request is defined else '' }}" placeholder="Search by patient name, ID or case" class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+          <input id="patientsSearch" type="search" placeholder="Search by patient name" class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100" />
         </div>
-        <button class="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Add Patient</button>
+        <button id="toggleNewPatient" type="button" class="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Add Patient</button>
       </div>
     </div>
+  </section>
+
+  <section id="newPatientPanel" class="hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <h3 class="text-lg font-semibold text-slate-800">Register Patient</h3>
+    <form id="newPatientForm" class="mt-4 grid gap-3 md:grid-cols-6">
+      <div class="md:col-span-2">
+        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Name</label>
+        <input id="patientName" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100" placeholder="Full name" />
+      </div>
+      <div>
+        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Age</label>
+        <input id="patientAge" type="number" min="0" max="130" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100" placeholder="Age" />
+      </div>
+      <div>
+        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Gender</label>
+        <select id="patientGender" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100">
+          <option>Male</option>
+          <option>Female</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div>
+        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Blood Group</label>
+        <select id="patientBlood" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100">
+          <option value="">--</option>
+          <option>A+</option>
+          <option>A-</option>
+          <option>B+</option>
+          <option>B-</option>
+          <option>AB+</option>
+          <option>AB-</option>
+          <option>O+</option>
+          <option>O-</option>
+        </select>
+      </div>
+      <div>
+        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Ward</label>
+        <input id="patientWard" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100" placeholder="Ward" />
+      </div>
+      <div class="md:col-span-6">
+        <button type="submit" class="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">Create Patient</button>
+      </div>
+    </form>
   </section>
 
   <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
     <div class="grid gap-3 md:grid-cols-4">
       <div>
         <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Status</label>
-        <select class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100">
+        <select id="statusFilter" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100">
           <option value="">All statuses</option>
-          <option>Stable</option>
-          <option>Observation</option>
-          <option>Critical</option>
-          <option>Discharged</option>
+          <option value="Critical">Critical</option>
+          <option value="Observation">Observation</option>
+          <option value="Stable">Stable</option>
+          <option value="Discharged">Discharged</option>
         </select>
       </div>
       <div>
         <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Priority</label>
-        <select class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100">
+        <select id="priorityFilter" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100">
           <option value="">All priorities</option>
-          <option>Routine</option>
-          <option>Urgent</option>
-          <option>Critical</option>
+          <option value="CRITICAL">Critical</option>
+          <option value="URGENT">Urgent</option>
+          <option value="ROUTINE">Routine</option>
         </select>
       </div>
       <div>
-        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Department</label>
-        <select class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100">
-          <option value="">All departments</option>
-          <option>Emergency</option>
-          <option>Radiology</option>
-          <option>Laboratory</option>
-          <option>Cardiology</option>
-        </select>
+        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Quick Queue</label>
+        <a href="/departments/Emergency/view" class="inline-flex w-full items-center justify-center rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Open Emergency Queue</a>
       </div>
       <div class="flex items-end">
-        <button class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Reset Filters</button>
+        <button id="resetFilters" type="button" class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Reset Filters</button>
       </div>
     </div>
   </section>
@@ -67,100 +104,295 @@
           <tr>
             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Patient</th>
             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">MRN</th>
-            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Department</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Ward</th>
             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Priority</th>
             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Status</th>
             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Updated</th>
             <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Actions</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-100">
-          {% if patients is defined and patients %}
-            {% for patient in patients %}
-              <tr class="hover:bg-slate-50/80">
-                <td class="px-4 py-3">
-                  <div>
-                    <p class="font-medium text-slate-700">{{ patient.name }}</p>
-                    <p class="text-xs text-slate-500">{{ patient.age }} years · {{ patient.gender }}</p>
-                  </div>
-                </td>
-                <td class="px-4 py-3 text-slate-600">{{ patient.mrn if patient.mrn is defined else patient.id }}</td>
-                <td class="px-4 py-3 text-slate-600">{{ patient.department if patient.department is defined else 'General' }}</td>
-                <td class="px-4 py-3">
-                  {% set priority_value = patient.priority|default('Routine') %}
-                  {% set badge_text = priority_value %}
-                  {% if priority_value|lower == 'critical' %}
-                    {% set badge_tone = 'rose' %}
-                  {% elif priority_value|lower == 'urgent' %}
-                    {% set badge_tone = 'amber' %}
-                  {% else %}
-                    {% set badge_tone = 'sky' %}
-                  {% endif %}
-                  {% include 'components/badge.html' %}
-                </td>
-                <td class="px-4 py-3">
-                  {% set status_value = patient.status|default('Stable') %}
-                  {% set badge_text = status_value %}
-                  {% if status_value|lower in ['critical', 'escalated'] %}
-                    {% set badge_tone = 'rose' %}
-                  {% elif status_value|lower in ['observation', 'in progress', 'in-progress'] %}
-                    {% set badge_tone = 'amber' %}
-                  {% elif status_value|lower in ['discharged', 'completed'] %}
-                    {% set badge_tone = 'slate' %}
-                  {% else %}
-                    {% set badge_tone = 'emerald' %}
-                  {% endif %}
-                  {% include 'components/badge.html' %}
-                </td>
-                <td class="px-4 py-3 text-slate-500">{{ patient.updated_at if patient.updated_at is defined else 'Just now' }}</td>
-                <td class="px-4 py-3 text-right">
-                  <a href="/patients/{{ patient.id }}/view" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Open</a>
-                </td>
-              </tr>
-            {% endfor %}
-          {% else %}
-            <tr class="hover:bg-slate-50/80">
-              <td class="px-4 py-3"><p class="font-medium text-slate-700">Meera Gupta</p><p class="text-xs text-slate-500">54 years · Female</p></td>
-              <td class="px-4 py-3 text-slate-600">MRN-10241</td>
-              <td class="px-4 py-3 text-slate-600">Cardiology</td>
-              <td class="px-4 py-3">{% set badge_text = 'Urgent' %}{% set badge_tone = 'amber' %}{% include 'components/badge.html' %}</td>
-              <td class="px-4 py-3">{% set badge_text = 'Observation' %}{% set badge_tone = 'amber' %}{% include 'components/badge.html' %}</td>
-              <td class="px-4 py-3 text-slate-500">3m ago</td>
-              <td class="px-4 py-3 text-right"><a href="/patients/1/view" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Open</a></td>
-            </tr>
-            <tr class="hover:bg-slate-50/80">
-              <td class="px-4 py-3"><p class="font-medium text-slate-700">Arjun Menon</p><p class="text-xs text-slate-500">37 years · Male</p></td>
-              <td class="px-4 py-3 text-slate-600">MRN-10244</td>
-              <td class="px-4 py-3 text-slate-600">Radiology</td>
-              <td class="px-4 py-3">{% set badge_text = 'Critical' %}{% set badge_tone = 'rose' %}{% include 'components/badge.html' %}</td>
-              <td class="px-4 py-3">{% set badge_text = 'Critical' %}{% set badge_tone = 'rose' %}{% include 'components/badge.html' %}</td>
-              <td class="px-4 py-3 text-slate-500">1m ago</td>
-              <td class="px-4 py-3 text-right"><a href="/patients/2/view" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Open</a></td>
-            </tr>
-            <tr class="hover:bg-slate-50/80">
-              <td class="px-4 py-3"><p class="font-medium text-slate-700">Nisha Iyer</p><p class="text-xs text-slate-500">62 years · Female</p></td>
-              <td class="px-4 py-3 text-slate-600">MRN-10252</td>
-              <td class="px-4 py-3 text-slate-600">Laboratory</td>
-              <td class="px-4 py-3">{% set badge_text = 'Routine' %}{% set badge_tone = 'sky' %}{% include 'components/badge.html' %}</td>
-              <td class="px-4 py-3">{% set badge_text = 'Stable' %}{% set badge_tone = 'emerald' %}{% include 'components/badge.html' %}</td>
-              <td class="px-4 py-3 text-slate-500">11m ago</td>
-              <td class="px-4 py-3 text-right"><a href="/patients/3/view" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Open</a></td>
-            </tr>
-          {% endif %}
-        </tbody>
+        <tbody id="patientsTableBody" class="divide-y divide-slate-100"></tbody>
       </table>
     </div>
-
     <div class="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <p class="text-sm text-slate-500">Showing {{ pagination.start if pagination is defined and pagination.start is defined else 1 }} to {{ pagination.end if pagination is defined and pagination.end is defined else 10 }} of {{ pagination.total if pagination is defined and pagination.total is defined else 126 }} patients</p>
+      <p id="patientsPageInfo" class="text-sm text-slate-500">Loading patients...</p>
       <div class="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
-        <button class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100">Prev</button>
-        <button class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white">1</button>
-        <button class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100">2</button>
-        <button class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100">3</button>
-        <button class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100">Next</button>
+        <button id="patientsPrev" class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100">Prev</button>
+        <span id="patientsPageNumber" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white">1</span>
+        <button id="patientsNext" class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100">Next</button>
       </div>
     </div>
   </section>
 </div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+  const patientState = {
+    allPatients: [],
+    filteredPatients: [],
+    statusMap: {},
+    priorityMap: {},
+    page: 1,
+    pageSize: 12
+  };
+
+  const priorityRank = { CRITICAL: 3, URGENT: 2, ROUTINE: 1 };
+
+  function parseDateMs(value) {
+    if (!value) return 0;
+    const normalized = String(value).endsWith('Z') ? String(value) : String(value) + 'Z';
+    const ts = new Date(normalized).getTime();
+    return Number.isFinite(ts) ? ts : 0;
+  }
+
+  function sortPatientsNewest(a, b) {
+    const delta = parseDateMs(b.created_at) - parseDateMs(a.created_at);
+    if (delta !== 0) return delta;
+    return Number(b.id || 0) - Number(a.id || 0);
+  }
+
+  async function fetchAllPatients(includeInactive = false) {
+    const pageSize = 100;
+    let page = 1;
+    let all = [];
+    let total = 0;
+
+    while (true) {
+      const url = '/patients?page=' + page + '&page_size=' + pageSize + (includeInactive ? '&include_inactive=true' : '');
+      const response = await fetch(url);
+      if (!response.ok) {
+        const detail = await response.text();
+        throw new Error('Patients fetch failed (' + response.status + '): ' + detail);
+      }
+      const payload = await response.json();
+      const rows = Array.isArray(payload.patients) ? payload.patients : [];
+      all = all.concat(rows);
+      total = Number(payload.total || all.length);
+      if (!rows.length || all.length >= total) break;
+      page += 1;
+    }
+
+    return all;
+  }
+
+  function formatRelative(iso) {
+    if (!iso) return 'Unknown';
+    const ts = new Date(iso.endsWith('Z') ? iso : iso + 'Z').getTime();
+    if (!Number.isFinite(ts)) return iso;
+    const delta = Math.max(0, Date.now() - ts);
+    const mins = Math.floor(delta / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return hours + 'h ago';
+    const days = Math.floor(hours / 24);
+    return days + 'd ago';
+  }
+
+  function badgeClass(tone) {
+    if (tone === 'rose') return 'bg-rose-100 text-rose-700';
+    if (tone === 'amber') return 'bg-amber-100 text-amber-700';
+    if (tone === 'emerald') return 'bg-emerald-100 text-emerald-700';
+    if (tone === 'sky') return 'bg-sky-100 text-sky-700';
+    return 'bg-slate-100 text-slate-700';
+  }
+
+  function deriveStatus(patient) {
+    if (String(patient.admission_status || '').toUpperCase() === 'DISCHARGED') return 'Discharged';
+    const row = patientState.statusMap[String(patient.id)];
+    if (!row) return 'Stable';
+    if (Number(row.overdue || 0) > 0) return 'Critical';
+    if (Number(row.in_progress || 0) > 0 || Number(row.pending || 0) > 0) return 'Observation';
+    return 'Stable';
+  }
+
+  function derivePriority(patient) {
+    return patientState.priorityMap[String(patient.id)] || 'ROUTINE';
+  }
+
+  function applyFilters() {
+    const query = String(document.getElementById('patientsSearch').value || '').trim().toLowerCase();
+    const statusFilter = String(document.getElementById('statusFilter').value || '');
+    const priorityFilter = String(document.getElementById('priorityFilter').value || '');
+
+    patientState.filteredPatients = patientState.allPatients.filter((patient) => {
+      const matchQuery = !query || String(patient.name || '').toLowerCase().includes(query) || String(patient.id || '').includes(query);
+      if (!matchQuery) return false;
+
+      const status = deriveStatus(patient);
+      if (statusFilter && status !== statusFilter) return false;
+
+      const priority = derivePriority(patient);
+      if (priorityFilter && priority !== priorityFilter) return false;
+
+      return true;
+    });
+
+    patientState.page = 1;
+    renderPatientsTable();
+  }
+
+  function renderPatientsTable() {
+    const tbody = document.getElementById('patientsTableBody');
+    if (!tbody) return;
+
+    const total = patientState.filteredPatients.length;
+    const totalPages = Math.max(1, Math.ceil(total / patientState.pageSize));
+    patientState.page = Math.min(patientState.page, totalPages);
+
+    const start = (patientState.page - 1) * patientState.pageSize;
+    const end = start + patientState.pageSize;
+    const rows = patientState.filteredPatients.slice(start, end);
+
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">No patients match the selected filters.</td></tr>';
+    } else {
+      tbody.innerHTML = rows.map((patient) => {
+        const status = deriveStatus(patient);
+        const priority = derivePriority(patient);
+
+        const statusTone = status === 'Critical' ? 'rose' : status === 'Observation' ? 'amber' : status === 'Discharged' ? 'slate' : 'emerald';
+        const priorityTone = priority === 'CRITICAL' ? 'rose' : priority === 'URGENT' ? 'amber' : 'sky';
+
+        return `
+          <tr class="hover:bg-slate-50/80">
+            <td class="px-4 py-3">
+              <p class="font-medium text-slate-700">${patient.name}</p>
+              <p class="text-xs text-slate-500">${patient.age} years · ${patient.gender}</p>
+            </td>
+            <td class="px-4 py-3 text-slate-600">MRN-${String(patient.id).padStart(5, '0')}</td>
+            <td class="px-4 py-3 text-slate-600">${patient.ward || '-'}</td>
+            <td class="px-4 py-3"><span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${badgeClass(priorityTone)}">${priority}</span></td>
+            <td class="px-4 py-3"><span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${badgeClass(statusTone)}">${status}</span></td>
+            <td class="px-4 py-3 text-slate-500">${formatRelative(patient.created_at)}</td>
+            <td class="px-4 py-3 text-right"><a href="/patients/${patient.id}/view" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Open</a></td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    const pageInfo = document.getElementById('patientsPageInfo');
+    const pageNumber = document.getElementById('patientsPageNumber');
+    const prevButton = document.getElementById('patientsPrev');
+    const nextButton = document.getElementById('patientsNext');
+
+    if (pageInfo) {
+      const from = total ? start + 1 : 0;
+      const to = Math.min(end, total);
+      pageInfo.textContent = 'Showing ' + from + ' to ' + to + ' of ' + total + ' patients';
+    }
+    if (pageNumber) pageNumber.textContent = String(patientState.page);
+    if (prevButton) prevButton.disabled = patientState.page <= 1;
+    if (nextButton) nextButton.disabled = patientState.page >= totalPages;
+  }
+
+  async function loadPatientsData() {
+    try {
+      const [patients, statusPayload, actionsPayload] = await Promise.all([
+        fetchAllPatients(),
+        fetch('/patients/status-board').then((r) => r.ok ? r.json() : { patients: [] }),
+        fetch('/actions').then((r) => r.ok ? r.json() : [])
+      ]);
+
+      patientState.allPatients = patients.sort(sortPatientsNewest);
+      patientState.statusMap = {};
+      (statusPayload.patients || []).forEach((row) => {
+        patientState.statusMap[String(row.patient_id)] = row;
+      });
+
+      patientState.priorityMap = {};
+      (Array.isArray(actionsPayload) ? actionsPayload : []).forEach((action) => {
+        if (action.is_terminal) return;
+        const pid = String(action.patient_id);
+        const current = patientState.priorityMap[pid] || 'ROUTINE';
+        const next = String(action.priority || 'ROUTINE').toUpperCase();
+        if ((priorityRank[next] || 1) > (priorityRank[current] || 1)) {
+          patientState.priorityMap[pid] = next;
+        }
+      });
+
+      patientState.filteredPatients = [...patientState.allPatients];
+      renderPatientsTable();
+    } catch (error) {
+      showToast('Failed to load patients: ' + error.message, 'error');
+    }
+  }
+
+  async function createPatient(event) {
+    event.preventDefault();
+    const payload = {
+      name: String(document.getElementById('patientName').value || '').trim(),
+      age: Number.parseInt(document.getElementById('patientAge').value, 10),
+      gender: document.getElementById('patientGender').value,
+      blood_group: document.getElementById('patientBlood').value || null,
+      ward: String(document.getElementById('patientWard').value || '').trim() || null
+    };
+
+    if (!payload.name || !Number.isFinite(payload.age)) {
+      showToast('Name and age are required', 'warning');
+      return;
+    }
+
+    const response = await fetch('/patients', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      let detail = 'Unable to create patient';
+      try {
+        const body = await response.json();
+        detail = body.detail || body.error || detail;
+      } catch (_err) {}
+      showToast(detail, 'error');
+      return;
+    }
+
+    showToast('Patient created successfully', 'success');
+    document.getElementById('newPatientForm').reset();
+    document.getElementById('newPatientPanel').classList.add('hidden');
+    await loadPatientsData();
+    applyFilters();
+  }
+
+  document.getElementById('toggleNewPatient')?.addEventListener('click', function() {
+    document.getElementById('newPatientPanel').classList.toggle('hidden');
+  });
+
+  document.getElementById('newPatientForm')?.addEventListener('submit', createPatient);
+  document.getElementById('patientsSearch')?.addEventListener('input', applyFilters);
+  document.getElementById('statusFilter')?.addEventListener('change', applyFilters);
+  document.getElementById('priorityFilter')?.addEventListener('change', applyFilters);
+
+  document.getElementById('resetFilters')?.addEventListener('click', function() {
+    document.getElementById('patientsSearch').value = '';
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('priorityFilter').value = '';
+    applyFilters();
+  });
+
+  document.getElementById('patientsPrev')?.addEventListener('click', function() {
+    if (patientState.page > 1) {
+      patientState.page -= 1;
+      renderPatientsTable();
+    }
+  });
+
+  document.getElementById('patientsNext')?.addEventListener('click', function() {
+    const totalPages = Math.max(1, Math.ceil(patientState.filteredPatients.length / patientState.pageSize));
+    if (patientState.page < totalPages) {
+      patientState.page += 1;
+      renderPatientsTable();
+    }
+  });
+
+  loadPatientsData();
+  setInterval(function() {
+    if (document.visibilityState === 'visible') {
+      loadPatientsData().then(applyFilters);
+    }
+  }, 25000);
+</script>
 {% endblock %}

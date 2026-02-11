@@ -5,137 +5,322 @@
 
 {% block content %}
 <div class="space-y-6">
-  <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-    {% set card_label = 'Throughput (24h)' %}
-    {% set card_value = analytics.throughput if analytics is defined and analytics.throughput is defined else '1,024' %}
-    {% set card_trend = '+12.4%' %}
-    {% set card_trend_tone = 'positive' %}
-    {% set card_subtitle = 'Completed actions' %}
-    {% set card_tone = 'indigo' %}
-    {% include 'components/card.html' %}
-
-    {% set card_label = 'Median TAT' %}
-    {% set card_value = analytics.median_tat if analytics is defined and analytics.median_tat is defined else '26m' %}
-    {% set card_trend = '-5m' %}
-    {% set card_trend_tone = 'positive' %}
-    {% set card_subtitle = 'Turnaround improvement' %}
-    {% set card_tone = 'emerald' %}
-    {% include 'components/card.html' %}
-
-    {% set card_label = 'Escalation Rate' %}
-    {% set card_value = analytics.escalation_rate if analytics is defined and analytics.escalation_rate is defined else '3.8%' %}
-    {% set card_trend = '-0.9%' %}
-    {% set card_trend_tone = 'positive' %}
-    {% set card_subtitle = 'Compared to prior week' %}
-    {% set card_tone = 'amber' %}
-    {% include 'components/card.html' %}
-
-    {% set card_label = 'SLA Compliance' %}
-    {% set card_value = analytics.sla if analytics is defined and analytics.sla is defined else '93.6%' %}
-    {% set card_trend = '+1.7%' %}
-    {% set card_trend_tone = 'positive' %}
-    {% set card_subtitle = 'All departments' %}
-    {% set card_tone = 'slate' %}
-    {% include 'components/card.html' %}
+  <section id="analyticsAccessMessage" class="hidden rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+    <p class="text-sm font-semibold text-amber-700">Analytics access is restricted to doctor/admin roles.</p>
+    <p class="mt-1 text-sm text-amber-600">Sign in with a privileged role to view throughput and SLA analytics.</p>
   </section>
 
-  <section class="grid gap-6 xl:grid-cols-12">
-    <article class="xl:col-span-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div class="flex items-center justify-between">
-        <div>
-          <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Volume Trend</p>
-          <h2 class="text-lg font-semibold text-slate-800">Department Throughput by Hour</h2>
-        </div>
-        <select class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100">
-          <option>Today</option>
-          <option>Last 7 days</option>
-          <option>Last 30 days</option>
-        </select>
-      </div>
+  <section id="analyticsContent" class="space-y-6">
+    <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <article class="rounded-2xl border border-indigo-200 bg-indigo-50 p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700">Throughput (24h)</p>
+        <p id="analyticsThroughput24" class="mt-4 text-3xl font-semibold text-indigo-950">0</p>
+        <p class="mt-2 text-sm text-indigo-700/80">Completed actions in last 24h</p>
+      </article>
 
-      <div class="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <svg viewBox="0 0 820 280" class="h-64 w-full">
-          <rect x="0" y="0" width="820" height="280" rx="12" fill="#f8fafc"></rect>
-          <g stroke="#e2e8f0" stroke-width="1">
-            <line x1="40" y1="44" x2="780" y2="44"></line>
-            <line x1="40" y1="96" x2="780" y2="96"></line>
-            <line x1="40" y1="148" x2="780" y2="148"></line>
-            <line x1="40" y1="200" x2="780" y2="200"></line>
-            <line x1="40" y1="252" x2="780" y2="252"></line>
-          </g>
-          <polyline points="40,214 132,186 224,194 316,168 408,154 500,128 592,146 684,120 776,136" fill="none" stroke="#4f46e5" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></polyline>
-          <polyline points="40,228 132,206 224,214 316,190 408,186 500,174 592,188 684,170 776,176" fill="none" stroke="#14b8a6" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></polyline>
-          <polyline points="40,246 132,226 224,234 316,214 408,202 500,198 592,208 684,196 776,204" fill="none" stroke="#f59e0b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></polyline>
-        </svg>
-      </div>
-    </article>
+      <article class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Avg Completion</p>
+        <p id="analyticsAvgCompletion" class="mt-4 text-3xl font-semibold text-emerald-950">0m</p>
+        <p class="mt-2 text-sm text-emerald-700/80">Average time to completion</p>
+      </article>
 
-    <article class="xl:col-span-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">SLA Heatmap</p>
-      <h2 class="text-lg font-semibold text-slate-800">Department Compliance</h2>
-      <div class="mt-5 space-y-3">
-        <div class="rounded-xl border border-slate-200 p-3">
-          <div class="flex items-center justify-between text-sm"><span class="font-medium text-slate-700">Radiology</span><span class="font-semibold text-emerald-600">97%</span></div>
-          <div class="mt-2 h-2.5 rounded-full bg-slate-100"><div class="h-2.5 w-[97%] rounded-full bg-emerald-500"></div></div>
-        </div>
-        <div class="rounded-xl border border-slate-200 p-3">
-          <div class="flex items-center justify-between text-sm"><span class="font-medium text-slate-700">Laboratory</span><span class="font-semibold text-amber-600">91%</span></div>
-          <div class="mt-2 h-2.5 rounded-full bg-slate-100"><div class="h-2.5 w-[91%] rounded-full bg-amber-500"></div></div>
-        </div>
-        <div class="rounded-xl border border-slate-200 p-3">
-          <div class="flex items-center justify-between text-sm"><span class="font-medium text-slate-700">Pharmacy</span><span class="font-semibold text-indigo-600">94%</span></div>
-          <div class="mt-2 h-2.5 rounded-full bg-slate-100"><div class="h-2.5 w-[94%] rounded-full bg-indigo-500"></div></div>
-        </div>
-        <div class="rounded-xl border border-slate-200 p-3">
-          <div class="flex items-center justify-between text-sm"><span class="font-medium text-slate-700">Emergency</span><span class="font-semibold text-rose-600">84%</span></div>
-          <div class="mt-2 h-2.5 rounded-full bg-slate-100"><div class="h-2.5 w-[84%] rounded-full bg-rose-500"></div></div>
-        </div>
-      </div>
-    </article>
-  </section>
+      <article class="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Escalation Pressure</p>
+        <p id="analyticsEscalationRate" class="mt-4 text-3xl font-semibold text-amber-950">0%</p>
+        <p class="mt-2 text-sm text-amber-700/80">Overdue vs throughput ratio</p>
+      </article>
 
-  <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-    <div class="flex items-center justify-between">
-      <div>
-        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Department Breakdown</p>
-        <h2 class="text-lg font-semibold text-slate-800">Operational Table</h2>
-      </div>
-      <button class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Download CSV</button>
-    </div>
+      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">SLA Compliance</p>
+        <p id="analyticsSlaRate" class="mt-4 text-3xl font-semibold text-slate-900">0%</p>
+        <p id="analyticsSlaSub" class="mt-2 text-sm text-slate-500">0 compliant / 0 tracked</p>
+      </article>
+    </section>
 
-    <div class="mt-4 overflow-x-auto">
-      <table class="min-w-full divide-y divide-slate-200 text-sm">
-        <thead class="bg-slate-50">
-          <tr>
-            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Department</th>
-            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Open</th>
-            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Completed</th>
-            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Median TAT</th>
-            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">SLA %</th>
-            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Escalations</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
-          {% if analytics_rows is defined and analytics_rows %}
-            {% for row in analytics_rows %}
-              <tr class="hover:bg-slate-50/80">
-                <td class="px-4 py-3 font-medium text-slate-700">{{ row.department }}</td>
-                <td class="px-4 py-3 text-slate-600">{{ row.open }}</td>
-                <td class="px-4 py-3 text-slate-600">{{ row.completed }}</td>
-                <td class="px-4 py-3 text-slate-600">{{ row.median_tat }}</td>
-                <td class="px-4 py-3 text-slate-600">{{ row.sla }}</td>
-                <td class="px-4 py-3 text-slate-600">{{ row.escalations }}</td>
+    <section class="grid gap-6 xl:grid-cols-12">
+      <article class="xl:col-span-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Volume Trend</p>
+            <h3 class="text-lg font-semibold text-slate-800">Department Throughput</h3>
+          </div>
+          <select id="analyticsRange" class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100">
+            <option value="last_24h">Last 24h</option>
+            <option value="last_7d">Last 7d</option>
+            <option value="last_30d">Last 30d</option>
+          </select>
+        </div>
+        <div id="analyticsThroughputList" class="mt-5 space-y-3"></div>
+      </article>
+
+      <article class="xl:col-span-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Bottlenecks</p>
+            <h3 class="text-lg font-semibold text-slate-800">Overdue by Department</h3>
+          </div>
+          <button id="analyticsExport" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Export CSV</button>
+        </div>
+        <div id="analyticsBottlenecks" class="mt-5 space-y-3"></div>
+      </article>
+    </section>
+
+    <section class="grid gap-6 xl:grid-cols-2">
+      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">SLA by Priority</p>
+        <h3 class="text-lg font-semibold text-slate-800">Compliance Segments</h3>
+        <div class="mt-4 overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-200 text-sm">
+            <thead class="bg-slate-50">
+              <tr>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Priority</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Compliant</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Total</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Rate</th>
               </tr>
-            {% endfor %}
-          {% else %}
-            <tr class="hover:bg-slate-50/80"><td class="px-4 py-3 font-medium text-slate-700">Radiology</td><td class="px-4 py-3 text-slate-600">42</td><td class="px-4 py-3 text-slate-600">188</td><td class="px-4 py-3 text-slate-600">21m</td><td class="px-4 py-3 text-slate-600">97%</td><td class="px-4 py-3 text-slate-600">3</td></tr>
-            <tr class="hover:bg-slate-50/80"><td class="px-4 py-3 font-medium text-slate-700">Laboratory</td><td class="px-4 py-3 text-slate-600">57</td><td class="px-4 py-3 text-slate-600">214</td><td class="px-4 py-3 text-slate-600">29m</td><td class="px-4 py-3 text-slate-600">91%</td><td class="px-4 py-3 text-slate-600">7</td></tr>
-            <tr class="hover:bg-slate-50/80"><td class="px-4 py-3 font-medium text-slate-700">Pharmacy</td><td class="px-4 py-3 text-slate-600">31</td><td class="px-4 py-3 text-slate-600">179</td><td class="px-4 py-3 text-slate-600">24m</td><td class="px-4 py-3 text-slate-600">94%</td><td class="px-4 py-3 text-slate-600">4</td></tr>
-            <tr class="hover:bg-slate-50/80"><td class="px-4 py-3 font-medium text-slate-700">Emergency</td><td class="px-4 py-3 text-slate-600">73</td><td class="px-4 py-3 text-slate-600">149</td><td class="px-4 py-3 text-slate-600">36m</td><td class="px-4 py-3 text-slate-600">84%</td><td class="px-4 py-3 text-slate-600">12</td></tr>
-          {% endif %}
-        </tbody>
-      </table>
-    </div>
+            </thead>
+            <tbody id="analyticsSlaPriorityBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Avg Completion by Type</p>
+        <h3 class="text-lg font-semibold text-slate-800">Action Performance</h3>
+        <div class="mt-4 overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-200 text-sm">
+            <thead class="bg-slate-50">
+              <tr>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Action Type</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Average</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Count</th>
+              </tr>
+            </thead>
+            <tbody id="analyticsCompletionBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
   </section>
 </div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+  const analyticsState = {
+    payload: null,
+    range: 'last_24h'
+  };
+
+  function fmtNumber(value) {
+    const num = Number(value || 0);
+    return Number.isFinite(num) ? num.toLocaleString() : '0';
+  }
+
+  function renderThroughputList() {
+    const host = document.getElementById('analyticsThroughputList');
+    const payload = analyticsState.payload;
+    if (!host || !payload) return;
+
+    const rows = payload.department_throughput || [];
+    if (!rows.length) {
+      host.innerHTML = '<p class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">No throughput data available.</p>';
+      return;
+    }
+
+    const key = analyticsState.range;
+    const maxValue = Math.max(...rows.map((row) => Number(row[key] || 0)), 1);
+    host.innerHTML = rows.map((row) => {
+      const value = Number(row[key] || 0);
+      const width = Math.max(6, Math.round((value / maxValue) * 100));
+      return `
+        <div class="space-y-1">
+          <div class="flex items-center justify-between text-sm">
+            <span class="font-medium text-slate-700">${row.department}</span>
+            <span class="text-slate-500">${value}</span>
+          </div>
+          <div class="h-2.5 rounded-full bg-slate-100">
+            <div class="h-2.5 rounded-full bg-indigo-500" style="width:${width}%"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderBottlenecks() {
+    const host = document.getElementById('analyticsBottlenecks');
+    const payload = analyticsState.payload;
+    if (!host || !payload) return;
+
+    const rows = payload.bottlenecks || [];
+    if (!rows.length) {
+      host.innerHTML = '<p class="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm font-semibold text-emerald-700">No current bottlenecks.</p>';
+      return;
+    }
+
+    host.innerHTML = rows.map((row) => `
+      <div class="rounded-xl border border-rose-200 bg-rose-50 p-3">
+        <p class="text-sm font-semibold text-rose-700">${row.department}</p>
+        <p class="mt-1 text-xs text-rose-600">${row.overdue_count} overdue action(s)</p>
+      </div>
+    `).join('');
+  }
+
+  function renderSlaTable() {
+    const body = document.getElementById('analyticsSlaPriorityBody');
+    const payload = analyticsState.payload;
+    if (!body || !payload) return;
+
+    const rows = (payload.sla_compliance && payload.sla_compliance.by_priority) ? payload.sla_compliance.by_priority : [];
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="4" class="px-3 py-8 text-center text-sm text-slate-500">No SLA segment data available.</td></tr>';
+      return;
+    }
+
+    body.innerHTML = rows.map((row) => {
+      const rate = Number(row.rate || 0);
+      const tone = rate >= 90 ? 'text-emerald-700' : rate >= 75 ? 'text-amber-700' : 'text-rose-700';
+      return `
+        <tr class="hover:bg-slate-50/80">
+          <td class="px-3 py-2 font-medium text-slate-700">${row.priority}</td>
+          <td class="px-3 py-2 text-slate-600">${fmtNumber(row.compliant)}</td>
+          <td class="px-3 py-2 text-slate-600">${fmtNumber(row.total)}</td>
+          <td class="px-3 py-2 font-semibold ${tone}">${rate.toFixed(2)}%</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function renderCompletionTable() {
+    const body = document.getElementById('analyticsCompletionBody');
+    const payload = analyticsState.payload;
+    if (!body || !payload) return;
+
+    const rows = payload.avg_completion_minutes || [];
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="3" class="px-3 py-8 text-center text-sm text-slate-500">No completion performance data available.</td></tr>';
+      return;
+    }
+
+    body.innerHTML = rows.map((row) => `
+      <tr class="hover:bg-slate-50/80">
+        <td class="px-3 py-2 font-medium text-slate-700">${row.action_type}</td>
+        <td class="px-3 py-2 text-slate-600">${Number(row.avg_minutes || 0).toFixed(1)}m</td>
+        <td class="px-3 py-2 text-slate-600">${fmtNumber(row.count)}</td>
+      </tr>
+    `).join('');
+  }
+
+  function renderMetrics() {
+    const payload = analyticsState.payload;
+    if (!payload) return;
+
+    const throughputRows = payload.department_throughput || [];
+    const throughput24 = throughputRows.reduce((sum, row) => sum + Number(row.last_24h || 0), 0);
+
+    const completionRows = payload.avg_completion_minutes || [];
+    const weightedSum = completionRows.reduce((sum, row) => sum + (Number(row.avg_minutes || 0) * Number(row.count || 0)), 0);
+    const weightedCount = completionRows.reduce((sum, row) => sum + Number(row.count || 0), 0);
+    const avgCompletion = weightedCount ? (weightedSum / weightedCount) : 0;
+
+    const bottleneckRows = payload.bottlenecks || [];
+    const overdueCount = bottleneckRows.reduce((sum, row) => sum + Number(row.overdue_count || 0), 0);
+    const escalationRate = throughput24 ? ((overdueCount / throughput24) * 100) : 0;
+
+    const overall = payload.sla_compliance && payload.sla_compliance.overall ? payload.sla_compliance.overall : { compliant: 0, total: 0, rate: 0 };
+
+    document.getElementById('analyticsThroughput24').textContent = fmtNumber(throughput24);
+    document.getElementById('analyticsAvgCompletion').textContent = avgCompletion.toFixed(1) + 'm';
+    document.getElementById('analyticsEscalationRate').textContent = escalationRate.toFixed(1) + '%';
+    document.getElementById('analyticsSlaRate').textContent = Number(overall.rate || 0).toFixed(2) + '%';
+    document.getElementById('analyticsSlaSub').textContent = fmtNumber(overall.compliant || 0) + ' compliant / ' + fmtNumber(overall.total || 0) + ' tracked';
+  }
+
+  function exportAnalyticsCsv() {
+    if (!analyticsState.payload) return;
+
+    const lines = [];
+    lines.push('section,department,last_24h,last_7d,last_30d,overdue_count');
+
+    const throughput = analyticsState.payload.department_throughput || [];
+    const bottleneckMap = {};
+    (analyticsState.payload.bottlenecks || []).forEach((row) => {
+      bottleneckMap[row.department] = row.overdue_count;
+    });
+
+    throughput.forEach((row) => {
+      lines.push([
+        'department_throughput',
+        row.department,
+        row.last_24h,
+        row.last_7d,
+        row.last_30d,
+        bottleneckMap[row.department] || 0
+      ].map((value) => '"' + String(value).replace(/"/g, '""') + '"').join(','));
+    });
+
+    lines.push('');
+    lines.push('priority,compliant,total,rate');
+    (analyticsState.payload.sla_compliance?.by_priority || []).forEach((row) => {
+      lines.push([
+        row.priority,
+        row.compliant,
+        row.total,
+        row.rate
+      ].map((value) => '"' + String(value).replace(/"/g, '""') + '"').join(','));
+    });
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'analytics-export.csv';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    showToast('Analytics CSV exported', 'success');
+  }
+
+  async function loadAnalytics() {
+    const response = await fetch('/analytics');
+
+    if (response.status === 403) {
+      document.getElementById('analyticsAccessMessage').classList.remove('hidden');
+      document.getElementById('analyticsContent').classList.add('hidden');
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error('Analytics fetch failed with ' + response.status);
+    }
+
+    analyticsState.payload = await response.json();
+    document.getElementById('analyticsAccessMessage').classList.add('hidden');
+    document.getElementById('analyticsContent').classList.remove('hidden');
+
+    renderMetrics();
+    renderThroughputList();
+    renderBottlenecks();
+    renderSlaTable();
+    renderCompletionTable();
+  }
+
+  document.getElementById('analyticsRange')?.addEventListener('change', function(event) {
+    analyticsState.range = event.target.value;
+    renderThroughputList();
+  });
+
+  document.getElementById('analyticsExport')?.addEventListener('click', exportAnalyticsCsv);
+
+  loadAnalytics().catch((error) => {
+    showToast('Failed to load analytics: ' + error.message, 'error');
+  });
+
+  setInterval(function() {
+    if (document.visibilityState === 'visible') {
+      loadAnalytics().catch(() => {});
+    }
+  }, 25000);
+</script>
 {% endblock %}

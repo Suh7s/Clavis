@@ -1,12 +1,25 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-slate-100">
+<html lang="en" class="h-full bg-slate-100 dark:bg-slate-950">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}Clavis{% endblock %}</title>
+  <script>
+    (function() {
+      try {
+        const key = 'clavis_theme';
+        const saved = localStorage.getItem(key);
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = (saved === 'dark' || saved === 'light') ? saved : (prefersDark ? 'dark' : 'light');
+        if (theme === 'dark') {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (_err) {}
+    })();
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="h-full bg-slate-100 text-slate-800 antialiased">
+<body class="h-full bg-slate-100 text-slate-800 antialiased dark:bg-slate-950 dark:text-slate-100">
   <div class="min-h-screen">
     <div id="sidebarBackdrop" class="fixed inset-0 z-30 hidden bg-slate-900/40 lg:hidden" onclick="closeSidebar()"></div>
 
@@ -29,6 +42,7 @@
     const sidebarEl = document.getElementById('sidenav');
     const sidebarBackdropEl = document.getElementById('sidebarBackdrop');
     const userMenuEl = document.getElementById('userMenu');
+    const THEME_STORAGE_KEY = 'clavis_theme';
 
     function openSidebar() {
       if (!sidebarEl || !sidebarBackdropEl) return;
@@ -47,6 +61,214 @@
       userMenuEl.classList.toggle('hidden');
     }
 
+    function getStoredTheme() {
+      try {
+        const saved = localStorage.getItem(THEME_STORAGE_KEY);
+        if (saved === 'dark' || saved === 'light') return saved;
+      } catch (_err) {}
+      return '';
+    }
+
+    function systemTheme() {
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light';
+    }
+
+    function setTheme(theme) {
+      const isDark = theme === 'dark';
+      document.documentElement.classList.toggle('dark', isDark);
+      try {
+        localStorage.setItem(THEME_STORAGE_KEY, isDark ? 'dark' : 'light');
+      } catch (_err) {}
+      updateThemeToggle();
+    }
+
+    function toggleDarkMode() {
+      const next = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+      setTheme(next);
+      if (typeof showToast === 'function') {
+        showToast(next === 'dark' ? 'Dark mode enabled' : 'Light mode enabled', 'info', 1400);
+      }
+    }
+
+    function updateThemeToggle() {
+      const button = document.getElementById('themeToggleButton');
+      if (!button) return;
+      const dark = document.documentElement.classList.contains('dark');
+      button.textContent = dark ? 'Light' : 'Dark';
+      button.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+    }
+
+    function getAuthToken() {
+      return sessionStorage.getItem('clavis_token');
+    }
+
+    function getCurrentUser() {
+      const raw = sessionStorage.getItem('clavis_user');
+      if (!raw) return null;
+      try {
+        return JSON.parse(raw);
+      } catch (_err) {
+        return null;
+      }
+    }
+
+    function clearAuthSession() {
+      sessionStorage.removeItem('clavis_token');
+      sessionStorage.removeItem('clavis_user');
+    }
+
+    function setAuthSession(token, user) {
+      sessionStorage.setItem('clavis_token', token);
+      sessionStorage.setItem('clavis_user', JSON.stringify(user || {}));
+    }
+
+    function homeForRole(role) {
+      const map = {
+        doctor: '/dashboard/view',
+        admin: '/dashboard/view',
+        nurse: '/departments/Nursing/view',
+        pharmacist: '/departments/Pharmacy/view',
+        lab_tech: '/departments/Laboratory/view',
+        radiologist: '/departments/Radiology/view'
+      };
+      return map[String(role || '').toLowerCase()] || '/dashboard/view';
+    }
+
+    function getDepartmentForRole(user) {
+      if (!user || !user.role) return 'Emergency';
+      const roleToDept = {
+        nurse: 'Nursing',
+        pharmacist: 'Pharmacy',
+        lab_tech: 'Laboratory',
+        radiologist: 'Radiology',
+        doctor: 'Emergency',
+        admin: 'Emergency'
+      };
+      return roleToDept[String(user.role).toLowerCase()] || (user.department || 'Emergency');
+    }
+
+    function isPublicPath(pathname) {
+      return pathname === '/login';
+    }
+
+    function shouldAttachAuth(urlPath) {
+      return !urlPath.startsWith('/auth/login') && !urlPath.startsWith('/api/v1/auth/login') && !urlPath.startsWith('/health');
+    }
+
+    function logout() {
+      clearAuthSession();
+      location.href = '/login';
+    }
+
+    function isTextInputTarget(target) {
+      if (!(target instanceof Element)) return false;
+      const tag = target.tagName.toLowerCase();
+      return target.isContentEditable || tag === 'input' || tag === 'textarea' || tag === 'select';
+    }
+
+    function focusSearchTarget() {
+      const target = window.clavisSearchTarget
+        || document.getElementById('globalSearchInput')
+        || document.querySelector('[data-shortcut-search]');
+      if (!target || typeof target.focus !== 'function') return false;
+      target.focus();
+      if (typeof target.select === 'function') target.select();
+      return true;
+    }
+
+    function bindKeyboardShortcuts() {
+      document.addEventListener('keydown', function(event) {
+        const key = String(event.key || '').toLowerCase();
+
+        if ((event.metaKey || event.ctrlKey) && key === 'k') {
+          event.preventDefault();
+          focusSearchTarget();
+          return;
+        }
+
+        if ((event.metaKey || event.ctrlKey) && event.shiftKey && key === 'd') {
+          event.preventDefault();
+          toggleDarkMode();
+          return;
+        }
+
+        if (event.altKey && key === 'n') {
+          if (isTextInputTarget(event.target)) return;
+          if (typeof window.clavisToggleNewForm === 'function') {
+            event.preventDefault();
+            window.clavisToggleNewForm();
+          }
+          return;
+        }
+
+        if (!event.metaKey && !event.ctrlKey && !event.altKey && key === '?') {
+          if (typeof showToast === 'function') {
+            showToast('Shortcuts: Ctrl/Cmd+K search, Alt+N new form, Ctrl/Cmd+Shift+D theme', 'info', 5000);
+          }
+        }
+      });
+    }
+
+    function renderAuthUI() {
+      const user = getCurrentUser();
+      const navUserName = document.getElementById('navUserName');
+      const navUserInitials = document.getElementById('navUserInitials');
+      const departmentQueueLink = document.getElementById('departmentQueueLink');
+      const privilegedLinks = document.querySelectorAll('.privileged-link');
+
+      if (user && navUserName) {
+        navUserName.textContent = user.name || 'Care Coordinator';
+      }
+      if (navUserInitials) {
+        const initials = user && user.name
+          ? user.name.split(/\s+/).filter(Boolean).slice(0, 2).map((chunk) => chunk[0]).join('').toUpperCase()
+          : 'CL';
+        navUserInitials.textContent = initials || 'CL';
+      }
+
+      if (departmentQueueLink) {
+        const dept = getDepartmentForRole(user);
+        departmentQueueLink.href = '/departments/' + encodeURIComponent(dept) + '/view';
+      }
+
+      const privileged = user && ['doctor', 'admin'].includes(String(user.role || '').toLowerCase());
+      privilegedLinks.forEach((link) => {
+        link.classList.toggle('hidden', !privileged);
+      });
+    }
+
+    const __nativeFetch = window.fetch.bind(window);
+    window.fetch = async function(input, init = {}) {
+      const merged = { cache: 'no-store', ...init };
+      const token = getAuthToken();
+      let url = '';
+
+      if (typeof input === 'string') {
+        url = input;
+      } else if (input && typeof input.url === 'string') {
+        url = input.url;
+      }
+
+      const path = url.startsWith(window.location.origin) ? url.slice(window.location.origin.length) : url;
+      const isSameOrigin = !url || url.startsWith('/') || url.startsWith(window.location.origin);
+      if (token && isSameOrigin && shouldAttachAuth(path || '')) {
+        const headers = new Headers(merged.headers || {});
+        if (!headers.has('Authorization')) {
+          headers.set('Authorization', 'Bearer ' + token);
+        }
+        merged.headers = headers;
+      }
+
+      const response = await __nativeFetch(input, merged);
+      if (response.status === 401 && !isPublicPath(window.location.pathname)) {
+        clearAuthSession();
+        location.href = '/login';
+      }
+      return response;
+    };
+
     document.addEventListener('click', function(event) {
       const menuButton = document.getElementById('userMenuButton');
       if (!menuButton || !userMenuEl) return;
@@ -63,6 +285,26 @@
         sidebarEl.classList.add('-translate-x-full');
       }
     });
+
+    window.addEventListener('DOMContentLoaded', function() {
+      const initialTheme = getStoredTheme() || systemTheme();
+      setTheme(initialTheme);
+      renderAuthUI();
+      bindKeyboardShortcuts();
+      if (!isPublicPath(window.location.pathname) && !getAuthToken()) {
+        location.href = '/login';
+      }
+    });
+
+    window.getAuthToken = getAuthToken;
+    window.getCurrentUser = getCurrentUser;
+    window.clearAuthSession = clearAuthSession;
+    window.setAuthSession = setAuthSession;
+    window.homeForRole = homeForRole;
+    window.logout = logout;
+    window.renderAuthUI = renderAuthUI;
+    window.toggleDarkMode = toggleDarkMode;
+    window.focusSearchTarget = focusSearchTarget;
   </script>
 
   {% block page_scripts %}{% endblock %}

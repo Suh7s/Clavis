@@ -138,9 +138,19 @@ def index_page(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
+@app.get("/dashboard/view", response_class=HTMLResponse)
+def dashboard_page(request: Request):
+    return templates.TemplateResponse("dashboard.html", {"request": request})
+
+
+@app.get("/patients/view", response_class=HTMLResponse)
+def patients_page(request: Request):
+    return templates.TemplateResponse("patients.html", {"request": request})
+
+
 @app.get("/patients/{patient_id}/view", response_class=HTMLResponse)
 def patient_page(request: Request, patient_id: int):
-    return templates.TemplateResponse("patient.html", {"request": request, "patient_id": patient_id})
+    return templates.TemplateResponse("patient_detail.html", {"request": request, "patient_id": patient_id})
 
 
 @app.get("/login", response_class=HTMLResponse)

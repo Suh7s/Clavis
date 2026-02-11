@@ -1,10 +1,9 @@
 import csv
 import io
 from datetime import datetime
-from html import escape
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from sqlmodel import Session, select
 
 from database import get_session
@@ -22,6 +21,88 @@ def _csv_response(filename: str, rows: list[list[str]]) -> StreamingResponse:
     return StreamingResponse(
         iter([buffer.getvalue()]),
         media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _pdf_escape(value: str) -> str:
+    safe = value.encode("latin-1", "replace").decode("latin-1")
+    return safe.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+
+def _pdf_page_stream(lines: list[str]) -> bytes:
+    ops = ["BT", "/F1 10 Tf", "14 TL", "40 760 Td"]
+    for i, line in enumerate(lines):
+        if i > 0:
+            ops.append("T*")
+        ops.append(f"({_pdf_escape(line)}) Tj")
+    ops.append("ET")
+    return ("\n".join(ops) + "\n").encode("latin-1", "replace")
+
+
+def _build_simple_pdf(lines: list[str], lines_per_page: int = 48) -> bytes:
+    chunks = [lines[i:i + lines_per_page] for i in range(0, len(lines), lines_per_page)] or [[""]]
+    pages = len(chunks)
+
+    font_id = 1
+    first_content_id = 2
+    first_page_id = first_content_id + pages
+    pages_id = first_page_id + pages
+    catalog_id = pages_id + 1
+    total_objects = catalog_id
+
+    objects: dict[int, bytes] = {
+        font_id: b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    }
+
+    for index, chunk in enumerate(chunks):
+        content_id = first_content_id + index
+        page_id = first_page_id + index
+        stream = _pdf_page_stream(chunk)
+        content_obj = (
+            f"<< /Length {len(stream)} >>\nstream\n".encode("latin-1")
+            + stream
+            + b"endstream"
+        )
+        page_obj = (
+            f"<< /Type /Page /Parent {pages_id} 0 R /MediaBox [0 0 612 792] "
+            f"/Resources << /Font << /F1 {font_id} 0 R >> >> /Contents {content_id} 0 R >>"
+        ).encode("latin-1")
+        objects[content_id] = content_obj
+        objects[page_id] = page_obj
+
+    kids = " ".join(f"{first_page_id + index} 0 R" for index in range(pages))
+    objects[pages_id] = f"<< /Type /Pages /Kids [{kids}] /Count {pages} >>".encode("latin-1")
+    objects[catalog_id] = f"<< /Type /Catalog /Pages {pages_id} 0 R >>".encode("latin-1")
+
+    output = bytearray()
+    output.extend(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+    offsets = [0] * (total_objects + 1)
+
+    for object_id in range(1, total_objects + 1):
+        offsets[object_id] = len(output)
+        output.extend(f"{object_id} 0 obj\n".encode("latin-1"))
+        output.extend(objects[object_id])
+        output.extend(b"\nendobj\n")
+
+    xref_offset = len(output)
+    output.extend(f"xref\n0 {total_objects + 1}\n".encode("latin-1"))
+    output.extend(b"0000000000 65535 f \n")
+    for object_id in range(1, total_objects + 1):
+        output.extend(f"{offsets[object_id]:010} 00000 n \n".encode("latin-1"))
+
+    trailer = (
+        f"trailer\n<< /Size {total_objects + 1} /Root {catalog_id} 0 R >>\n"
+        f"startxref\n{xref_offset}\n%%EOF\n"
+    )
+    output.extend(trailer.encode("latin-1"))
+    return bytes(output)
+
+
+def _pdf_response(filename: str, content: bytes) -> Response:
+    return Response(
+        content=content,
+        media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
@@ -180,60 +261,41 @@ def export_patient_pdf(
         .order_by(PatientNote.created_at.asc())  # type: ignore[union-attr]
     ).all()
 
-    action_rows = "".join(
-        f"<tr><td>{action.id}</td><td>{escape(action.action_type.value if action.action_type else '')}</td>"
-        f"<td>{escape(action.title or '')}</td><td>{escape(action.current_state)}</td>"
-        f"<td>{escape(str(action.priority))}</td><td>{escape(action.department)}</td></tr>"
-        for action in actions
-    )
-    note_rows = "".join(
-        f"<tr><td>{note.id}</td><td>{escape(note.note_type)}</td><td>{escape(note.content)}</td>"
-        f"<td>{note.created_at.strftime('%Y-%m-%d %H:%M')}</td></tr>"
-        for note in notes
-    )
+    lines = [
+        f"Patient Report #{patient.id}",
+        f"Name: {patient.name}",
+        f"Age/Gender: {patient.age} / {patient.gender}",
+        f"Ward: {patient.ward or '-'}",
+        f"Status: {patient.admission_status.value if hasattr(patient.admission_status, 'value') else patient.admission_status}",
+        "",
+        "Clinical Actions",
+        "ID | Type | Title | State | Priority | Department",
+    ]
 
-    html = f"""
-<!doctype html>
-<html>
-<head>
-  <meta charset=\"utf-8\" />
-  <title>Patient Report #{patient.id}</title>
-  <style>
-    body {{ font-family: Arial, sans-serif; margin: 24px; color: #1f2937; }}
-    h1, h2 {{ margin-bottom: 8px; }}
-    .meta {{ margin-bottom: 16px; color: #4b5563; font-size: 14px; }}
-    table {{ width: 100%; border-collapse: collapse; margin-bottom: 18px; }}
-    th, td {{ border: 1px solid #d1d5db; padding: 8px; font-size: 13px; vertical-align: top; }}
-    th {{ background: #f3f4f6; text-align: left; }}
-  </style>
-</head>
-<body>
-  <h1>Patient Report</h1>
-  <div class=\"meta\">Patient #{patient.id} · {escape(patient.name)} · {patient.age}y · {escape(patient.gender)} · Ward {escape(patient.ward or '—')}</div>
+    if actions:
+        for action in actions:
+            lines.append(
+                f"{action.id} | "
+                f"{action.action_type.value if action.action_type else ''} | "
+                f"{action.title or ''} | "
+                f"{action.current_state} | "
+                f"{action.priority.value if hasattr(action.priority, 'value') else action.priority} | "
+                f"{action.department}"
+            )
+    else:
+        lines.append("No actions")
 
-  <h2>Clinical Actions</h2>
-  <table>
-    <thead>
-      <tr><th>ID</th><th>Type</th><th>Title</th><th>State</th><th>Priority</th><th>Department</th></tr>
-    </thead>
-    <tbody>{action_rows or '<tr><td colspan="6">No actions</td></tr>'}</tbody>
-  </table>
+    lines.extend(["", "Clinical Notes", "ID | Type | Content | Created"])
+    if notes:
+        for note in notes:
+            lines.append(
+                f"{note.id} | {note.note_type} | {note.content} | {note.created_at.strftime('%Y-%m-%d %H:%M')}"
+            )
+    else:
+        lines.append("No notes")
 
-  <h2>Clinical Notes</h2>
-  <table>
-    <thead>
-      <tr><th>ID</th><th>Type</th><th>Content</th><th>Created</th></tr>
-    </thead>
-    <tbody>{note_rows or '<tr><td colspan="4">No notes</td></tr>'}</tbody>
-  </table>
-</body>
-</html>
-""".strip()
-
-    return HTMLResponse(
-        content=html,
-        headers={"Content-Disposition": f'attachment; filename="patient-{patient_id}-report.html"'},
-    )
+    pdf = _build_simple_pdf(lines)
+    return _pdf_response(f"patient-{patient_id}-report.pdf", pdf)
 
 
 @router.get("/audit-log/csv")

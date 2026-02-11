@@ -1,8 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Clavis — Patient #{{ patient_id }}{% endblock %}
+{% set page_title = "Patient #" ~ patient_id %}
+{% set active_page = "patients" %}
+{% block title %}Clavis | Patient #{{ patient_id }}{% endblock %}
 {% block content %}
 
-<a href="/" class="text-sm text-blue-600 hover:underline mb-4 inline-block">&larr; All Patients</a>
+<a href="/patients/view" class="mb-4 inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50">&larr; All Patients</a>
 
 <div id="patientHeader" class="mb-6"></div>
 <div id="interactionWarnings" class="hidden mb-4"></div>

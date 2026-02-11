@@ -8,6 +8,29 @@ def _create_patient(client, doctor_headers):
     return response.json()["id"]
 
 
+def test_rbac_create_patient_permissions(client, doctor_headers, nurse_headers, admin_headers):
+    blocked = client.post(
+        "/patients",
+        headers=nurse_headers,
+        json={"name": "Nurse Blocked", "age": 28, "gender": "Female"},
+    )
+    assert blocked.status_code == 403
+
+    doctor_allowed = client.post(
+        "/patients",
+        headers=doctor_headers,
+        json={"name": "Doctor Allowed", "age": 52, "gender": "Male"},
+    )
+    assert doctor_allowed.status_code == 201
+
+    admin_allowed = client.post(
+        "/patients",
+        headers=admin_headers,
+        json={"name": "Admin Allowed", "age": 41, "gender": "Female"},
+    )
+    assert admin_allowed.status_code == 201
+
+
 def test_rbac_create_action_permissions(client, doctor_headers, nurse_headers):
     patient_id = _create_patient(client, doctor_headers)
 
