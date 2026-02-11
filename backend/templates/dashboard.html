@@ -5,7 +5,7 @@
 
 {% block content %}
 <div class="space-y-6">
-  <section class="rounded-2xl border border-slate-200 bg-gradient-to-r from-indigo-600 to-indigo-500 p-5 text-white shadow-lg shadow-indigo-200/70">
+  <section class="clavis-page-hero clavis-hero-section rounded-2xl border border-slate-200 p-6 text-white shadow-lg">
     <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
       <div>
         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-indigo-100">Operational Command Center</p>
@@ -16,34 +16,38 @@
     </div>
   </section>
 
-  <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-    <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+  <section id="dashboardKpiGrid" class="clavis-kpi-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <article class="clavis-tilt clavis-glow-border rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" style="animation-delay: 60ms">
+      <div class="clavis-shine" aria-hidden="true"></div>
       <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Total Patients</p>
       <p id="metricTotalPatients" class="mt-4 text-3xl font-semibold text-slate-900">0</p>
       <p id="metricTotalPatientsSub" class="mt-2 text-sm text-slate-500">Active patient records</p>
     </article>
 
-    <article class="rounded-2xl border border-indigo-200 bg-indigo-50 p-5 shadow-sm">
+    <article class="clavis-tilt clavis-glow-border rounded-2xl border border-indigo-200 bg-indigo-50 p-5 shadow-sm" style="animation-delay: 120ms">
+      <div class="clavis-shine" aria-hidden="true"></div>
       <p class="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700">Active Tasks</p>
       <p id="metricActiveTasks" class="mt-4 text-3xl font-semibold text-indigo-950">0</p>
       <p id="metricActiveTasksSub" class="mt-2 text-sm text-indigo-700/80">Current in-flight actions</p>
     </article>
 
-    <article class="rounded-2xl border border-rose-200 bg-rose-50 p-5 shadow-sm">
+    <article class="clavis-tilt clavis-glow-border rounded-2xl border border-rose-200 bg-rose-50 p-5 shadow-sm" style="animation-delay: 180ms">
+      <div class="clavis-shine" aria-hidden="true"></div>
       <p class="text-xs font-semibold uppercase tracking-[0.14em] text-rose-700">Overdue Tasks</p>
       <p id="metricOverdueTasks" class="mt-4 text-3xl font-semibold text-rose-950">0</p>
       <p id="metricOverdueTasksSub" class="mt-2 text-sm text-rose-700/80">Escalation risk queue</p>
     </article>
 
-    <article class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+    <article class="clavis-tilt clavis-glow-border rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm" style="animation-delay: 240ms">
+      <div class="clavis-shine" aria-hidden="true"></div>
       <p class="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">SLA Compliance</p>
       <p id="metricSlaCompliance" class="mt-4 text-3xl font-semibold text-emerald-950">--</p>
       <p id="metricSlaComplianceSub" class="mt-2 text-sm text-emerald-700/80">Rolling completion quality</p>
     </article>
   </section>
 
-  <section class="grid gap-6 xl:grid-cols-3">
-    <article class="xl:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+  <section class="grid gap-6 lg:grid-cols-3">
+    <article class="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div class="flex items-center justify-between gap-3">
         <div>
           <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Throughput</p>
@@ -61,8 +65,8 @@
     </article>
   </section>
 
-  <section class="grid gap-6 xl:grid-cols-3">
-    <article class="xl:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+  <section class="grid gap-6 lg:grid-cols-3">
+    <article class="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div class="flex items-center justify-between gap-3">
         <div>
           <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Recent Activity</p>

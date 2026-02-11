@@ -3,10 +3,10 @@
 <script>
   function showToast(message, tone, duration) {
     const palette = {
-      info: 'border-indigo-200 bg-indigo-50 text-indigo-700',
-      success: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-      warning: 'border-amber-200 bg-amber-50 text-amber-700',
-      error: 'border-rose-200 bg-rose-50 text-rose-700'
+      info: 'border-indigo-200 bg-indigo-50/90 text-indigo-700',
+      success: 'border-emerald-200 bg-emerald-50/90 text-emerald-700',
+      warning: 'border-amber-200 bg-amber-50/90 text-amber-700',
+      error: 'border-rose-200 bg-rose-50/90 text-rose-700'
     };
     const iconMap = {
       info: 'i',
@@ -18,8 +18,10 @@
     const root = document.getElementById('toastRoot');
     if (!root) return;
 
+    const ms = Number.isFinite(duration) ? duration : 4200;
+
     const toast = document.createElement('div');
-    toast.className = 'pointer-events-auto translate-y-2 rounded-2xl border px-4 py-3.5 text-sm font-medium shadow-lg transition duration-200 backdrop-blur-sm ' + (palette[tone] || palette.info);
+    toast.className = 'pointer-events-auto clavis-toast-enter relative overflow-hidden rounded-2xl border px-4 py-3.5 text-sm font-medium shadow-lg backdrop-blur-xl ' + (palette[tone] || palette.info);
 
     const wrapper = document.createElement('div');
     wrapper.className = 'flex items-center justify-between gap-3';
@@ -28,7 +30,7 @@
     left.className = 'flex items-center gap-2.5';
 
     const icon = document.createElement('span');
-    icon.className = 'inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-current/20 bg-white/65 px-1 text-[10px] font-bold uppercase tracking-[0.14em]';
+    icon.className = 'inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-current/20 bg-white/80 px-1 text-[10px] font-bold uppercase tracking-[0.14em]';
     icon.textContent = iconMap[tone] || iconMap.info;
 
     const text = document.createElement('span');
@@ -39,25 +41,27 @@
     close.className = 'text-[10px] font-semibold uppercase tracking-[0.14em] opacity-70 hover:opacity-100';
     close.textContent = 'Close';
 
+    const progress = document.createElement('div');
+    progress.className = 'clavis-toast-progress';
+    progress.style.animation = 'toastProgress ' + ms + 'ms linear forwards';
+
     left.appendChild(icon);
     left.appendChild(text);
     wrapper.appendChild(left);
     wrapper.appendChild(close);
     toast.appendChild(wrapper);
+    toast.appendChild(progress);
     root.appendChild(toast);
 
-    requestAnimationFrame(function() {
-      toast.classList.remove('translate-y-2');
-    });
-
     const removeToast = function() {
-      toast.classList.add('translate-y-2', 'opacity-0');
+      toast.classList.remove('clavis-toast-enter');
+      toast.classList.add('clavis-toast-exit');
       setTimeout(function() {
         toast.remove();
-      }, 180);
+      }, 280);
     };
 
     close.addEventListener('click', removeToast);
-    setTimeout(removeToast, Number.isFinite(duration) ? duration : 4200);
+    setTimeout(removeToast, ms);
   }
 </script>

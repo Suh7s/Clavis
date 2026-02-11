@@ -33,15 +33,16 @@
   'neutral': 'bg-slate-100 text-slate-700'
 } %}
 
-<div class="rounded-2xl border p-5 shadow-sm {{ tone_classes[tone] if tone in tone_classes else tone_classes['slate'] }}">
-  <p class="text-xs font-semibold uppercase tracking-[0.14em] {{ label_classes[tone] if tone in label_classes else label_classes['slate'] }}">{{ card_label|default('Metric') }}</p>
+<div class="clavis-tilt clavis-glow-border rounded-2xl border p-5 shadow-sm {{ tone_classes[tone] if tone in tone_classes else tone_classes['slate'] }}">
+  <div class="clavis-shine" aria-hidden="true"></div>
+  <p class="text-[11px] font-semibold uppercase tracking-[0.16em] {{ label_classes[tone] if tone in label_classes else label_classes['slate'] }}">{{ card_label|default('Metric') }}</p>
   <div class="mt-4 flex items-end justify-between gap-3">
-    <p class="text-2xl font-semibold {{ value_classes[tone] if tone in value_classes else value_classes['slate'] }}">{{ card_value|default('0') }}</p>
+    <p class="text-[1.95rem] font-semibold leading-none {{ value_classes[tone] if tone in value_classes else value_classes['slate'] }}">{{ card_value|default('0') }}</p>
     {% if card_trend %}
-      <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ trend_classes[card_trend_tone|default('neutral')] if card_trend_tone|default('neutral') in trend_classes else trend_classes['neutral'] }}">{{ card_trend }}</span>
+      <span class="rounded-full px-2.5 py-1 text-[11px] font-semibold {{ trend_classes[card_trend_tone|default('neutral')] if card_trend_tone|default('neutral') in trend_classes else trend_classes['neutral'] }}">{{ card_trend }}</span>
     {% endif %}
   </div>
   {% if card_subtitle %}
-    <p class="mt-3 text-sm {{ subtitle_classes[tone] if tone in subtitle_classes else subtitle_classes['slate'] }}">{{ card_subtitle }}</p>
+    <p class="mt-3 text-sm leading-relaxed {{ subtitle_classes[tone] if tone in subtitle_classes else subtitle_classes['slate'] }}">{{ card_subtitle }}</p>
   {% endif %}
 </div>
