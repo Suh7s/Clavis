@@ -2,42 +2,83 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
 from database import get_session
-from models import ActionType, Priority, ClinicalAction, ActionEvent, Patient, CustomActionType
-from state_machine import INITIAL_STATES, validate_transition, validate_custom_transition
-from services.sla import compute_sla_deadline, compute_custom_sla_deadline, is_action_overdue
+from models import ActionEvent, ActionType, ClinicalAction, CustomActionType, Patient, Priority, User, UserRole
+from services.access import can_access_department_queue, roles_allowed_for_transition
+from services.auth import get_current_user, require_roles
+from services.sla import compute_custom_sla_deadline, compute_sla_deadline, is_action_overdue
+from services.workflow import (
+    default_department_for_action,
+    department_matches,
+    primary_queue_department,
+    queue_departments_for_action,
+)
+from state_machine import INITIAL_STATES, validate_custom_transition, validate_transition
 from ws import manager
 
 router = APIRouter(prefix="/actions", tags=["actions"])
 
-DEPARTMENT_MAP = {
-    ActionType.DIAGNOSTIC: "Laboratory",
-    ActionType.MEDICATION: "Pharmacy",
-    ActionType.REFERRAL: "Referral",
-    ActionType.CARE_INSTRUCTION: "Nursing",
+PRIORITY_RANK = {
+    Priority.CRITICAL.value: 0,
+    Priority.URGENT.value: 1,
+    Priority.ROUTINE.value: 2,
 }
 
 
-def _get_custom_terminal(action: ClinicalAction, session: Session) -> str | None:
+def _get_custom_type(action: ClinicalAction, session: Session) -> CustomActionType | None:
     if action.custom_action_type_id is None:
         return None
-    cat = session.get(CustomActionType, action.custom_action_type_id)
+    return session.get(CustomActionType, action.custom_action_type_id)
+
+
+def _get_custom_terminal(action: ClinicalAction, session: Session) -> str | None:
+    cat = _get_custom_type(action, session)
     return cat.terminal_state if cat else None
 
 
 def action_response(action: ClinicalAction, session: Session) -> dict:
     data = action.model_dump()
     custom_terminal = _get_custom_terminal(action, session)
+    queue_departments = queue_departments_for_action(action, custom_terminal)
     data["is_overdue"] = is_action_overdue(action, custom_terminal)
-    if action.custom_action_type_id:
-        cat = session.get(CustomActionType, action.custom_action_type_id)
-        if cat:
-            data["custom_type_name"] = cat.name
+    data["queue_departments"] = queue_departments
+    data["queue_department"] = primary_queue_department(action, custom_terminal)
+    data["is_terminal"] = len(queue_departments) == 0
+
+    cat = _get_custom_type(action, session)
+    if cat:
+        data["custom_type_name"] = cat.name
     return data
+
+
+async def _broadcast_action_change(
+    action: ClinicalAction,
+    session: Session,
+    event_type: str,
+    previous_queues: list[str] | None = None,
+):
+    payload = {
+        "event": event_type,
+        "action_id": action.id,
+        "patient_id": action.patient_id,
+        "new_state": action.current_state,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+    data = action_response(action, session)
+    payload["is_overdue"] = data["is_overdue"]
+    payload["queue_departments"] = data["queue_departments"]
+
+    await manager.broadcast_patient(action.patient_id, payload)
+    await manager.broadcast_status(payload)
+
+    departments = set(data["queue_departments"])
+    if previous_queues:
+        departments.update(previous_queues)
+    for dept in departments:
+        await manager.broadcast_department(dept, payload)
 
 
 class ActionCreate(BaseModel):
@@ -45,14 +86,28 @@ class ActionCreate(BaseModel):
     action_type: Optional[ActionType] = None
     custom_action_type_id: Optional[int] = None
     priority: Priority = Priority.ROUTINE
+    title: str = Field(default="", max_length=200)
+    notes: str = Field(default="", max_length=2000)
+    department_target: Optional[str] = Field(default=None, max_length=80)
+
+
+class ActionEdit(BaseModel):
+    title: Optional[str] = Field(default=None, max_length=200)
+    notes: Optional[str] = Field(default=None, max_length=2000)
+    priority: Optional[Priority] = None
 
 
 class TransitionRequest(BaseModel):
-    new_state: str
+    new_state: str = Field(min_length=1, max_length=64)
+    notes: str = Field(default="", max_length=2000)
 
 
 @router.post("", status_code=201)
-async def create_action(body: ActionCreate, session: Session = Depends(get_session)):
+async def create_action(
+    body: ActionCreate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_roles(UserRole.DOCTOR, UserRole.ADMIN)),
+):
     if body.action_type and body.custom_action_type_id:
         raise HTTPException(422, "Set action_type OR custom_action_type_id, not both")
     if not body.action_type and not body.custom_action_type_id:
@@ -62,55 +117,107 @@ async def create_action(body: ActionCreate, session: Session = Depends(get_sessi
     if not patient:
         raise HTTPException(404, "Patient not found")
 
+    title = body.title.strip()
+    notes = body.notes.strip()
+    department_target = body.department_target.strip() if body.department_target else None
+    if not title:
+        raise HTTPException(422, "Action title cannot be empty")
+
     if body.custom_action_type_id:
         cat = session.get(CustomActionType, body.custom_action_type_id)
         if not cat:
             raise HTTPException(404, "Custom action type not found")
+        if not cat.states:
+            raise HTTPException(500, "Custom action type has no defined states")
         initial_state = cat.states[0]
         department = cat.department
         sla_deadline = compute_custom_sla_deadline(body.priority, cat)
         label = cat.name
     else:
         initial_state = INITIAL_STATES[body.action_type]
-        department = DEPARTMENT_MAP[body.action_type]
+        department = default_department_for_action(
+            body.action_type,
+            title=title,
+            department_target=department_target,
+        )
         sla_deadline = compute_sla_deadline(body.priority)
         label = body.action_type.value
 
     action = ClinicalAction(
         patient_id=body.patient_id,
+        created_by=current_user.id,
         action_type=body.action_type,
         custom_action_type_id=body.custom_action_type_id,
+        title=title,
+        notes=notes,
         current_state=initial_state,
         priority=body.priority,
         department=department,
         sla_deadline=sla_deadline,
     )
+    try:
+        session.add(action)
+        session.flush()
+
+        event = ActionEvent(
+            action_id=action.id,
+            actor_id=current_user.id,
+            actor_role=current_user.role,
+            previous_state="",
+            new_state=initial_state,
+        )
+        session.add(event)
+        session.commit()
+        session.refresh(action)
+    except Exception:
+        session.rollback()
+        raise HTTPException(500, "Failed to create action")
+
+    print(f"[ACTION] Created #{action.id} {label} '{action.title}' for patient #{body.patient_id}")
+    await _broadcast_action_change(action, session, "action_created")
+
+    return action_response(action, session)
+
+
+@router.patch("/{action_id}", response_model=None)
+async def edit_action(
+    action_id: int,
+    body: ActionEdit,
+    session: Session = Depends(get_session),
+    _current_user: User = Depends(require_roles(UserRole.DOCTOR, UserRole.ADMIN)),
+):
+    action = session.get(ClinicalAction, action_id)
+    if not action:
+        raise HTTPException(404, "Action not found")
+
+    if body.title is not None:
+        title = body.title.strip()
+        if not title:
+            raise HTTPException(422, "Action title cannot be empty")
+        action.title = title
+    if body.notes is not None:
+        action.notes = body.notes.strip()
+    if body.priority is not None:
+        action.priority = body.priority
+        if action.custom_action_type_id:
+            cat = session.get(CustomActionType, action.custom_action_type_id)
+            if cat:
+                action.sla_deadline = compute_custom_sla_deadline(body.priority, cat)
+        else:
+            action.sla_deadline = compute_sla_deadline(body.priority)
+
     session.add(action)
-    session.commit()
-    session.refresh(action)
 
-    event = ActionEvent(
-        action_id=action.id,
-        previous_state="",
-        new_state=initial_state,
-    )
-    session.add(event)
-    session.commit()
-    session.refresh(action)
+    try:
+        session.commit()
+        session.refresh(action)
+    except Exception:
+        session.rollback()
+        raise HTTPException(500, "Failed to save changes")
 
-    resp = action_response(action, session)
-    print(f"[ACTION] Created #{action.id} {label} for patient #{body.patient_id}")
-
-    await manager.broadcast(body.patient_id, {
-        "event": "action_created",
-        "action_id": action.id,
-        "patient_id": body.patient_id,
-        "new_state": action.current_state,
-        "is_overdue": resp["is_overdue"],
-        "timestamp": datetime.utcnow().isoformat(),
-    })
-
-    return resp
+    print(f"[EDIT] Action #{action_id} updated")
+    await _broadcast_action_change(action, session, "action_updated")
+    return action_response(action, session)
 
 
 @router.patch("/{action_id}/transition")
@@ -118,30 +225,49 @@ async def transition_action(
     action_id: int,
     body: TransitionRequest,
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     action = session.get(ClinicalAction, action_id)
     if not action:
         raise HTTPException(404, "Action not found")
+
+    new_state = body.new_state.strip().upper()
+    if not new_state:
+        raise HTTPException(422, "new_state cannot be empty")
+    notes = body.notes.strip()
+
+    custom_terminal = _get_custom_terminal(action, session)
+    previous_queues = queue_departments_for_action(action, custom_terminal)
 
     try:
         if action.custom_action_type_id:
             cat = session.get(CustomActionType, action.custom_action_type_id)
             if not cat:
                 raise HTTPException(404, "Custom action type not found")
-            validate_custom_transition(cat, action.current_state, body.new_state)
+            validate_custom_transition(cat, action.current_state, new_state)
         else:
-            validate_transition(action.action_type, action.current_state, body.new_state)
-    except ValueError:
-        return JSONResponse(status_code=422, content={"error": "Invalid state transition"})
+            validate_transition(action.action_type, action.current_state, new_state)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+    allowed_roles = roles_allowed_for_transition(action, new_state)
+    if current_user.role not in allowed_roles:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Role '{current_user.role.value}' cannot transition this action to '{new_state}'",
+        )
 
     prev = action.current_state
-    action.current_state = body.new_state
+    action.current_state = new_state
     session.add(action)
 
     event = ActionEvent(
         action_id=action.id,
+        actor_id=current_user.id,
+        actor_role=current_user.role,
         previous_state=prev,
-        new_state=body.new_state,
+        new_state=new_state,
+        notes=notes,
     )
     session.add(event)
 
@@ -150,45 +276,38 @@ async def transition_action(
         session.refresh(action)
     except Exception:
         session.rollback()
-        return JSONResponse(status_code=500, content={"error": "Failed to save transition"})
+        raise HTTPException(500, "Failed to save transition")
 
-    resp = action_response(action, session)
-    print(f"[TRANSITION] Action #{action_id}: {prev} -> {body.new_state}")
+    print(f"[TRANSITION] Action #{action_id}: {prev} -> {new_state}")
+    await _broadcast_action_change(action, session, "action_updated", previous_queues=previous_queues)
 
-    await manager.broadcast(action.patient_id, {
-        "event": "action_updated",
-        "action_id": action.id,
-        "patient_id": action.patient_id,
-        "new_state": body.new_state,
-        "is_overdue": resp["is_overdue"],
-        "timestamp": datetime.utcnow().isoformat(),
-    })
-
-    return resp
+    return action_response(action, session)
 
 
 @router.get("/patients/{patient_id}/timeline")
-def patient_timeline(patient_id: int, session: Session = Depends(get_session)):
+def patient_timeline(
+    patient_id: int,
+    session: Session = Depends(get_session),
+    _current_user: User = Depends(get_current_user),
+):
     patient = session.get(Patient, patient_id)
     if not patient:
         raise HTTPException(404, "Patient not found")
 
-    actions = session.exec(
-        select(ClinicalAction).where(ClinicalAction.patient_id == patient_id)
-    ).all()
-
+    actions = session.exec(select(ClinicalAction).where(ClinicalAction.patient_id == patient_id)).all()
     action_ids = [a.id for a in actions]
     if not action_ids:
         return []
 
-    # Build action_id -> display name map
     name_map: dict[int, str] = {}
-    for a in actions:
-        if a.custom_action_type_id:
-            cat = session.get(CustomActionType, a.custom_action_type_id)
-            name_map[a.id] = cat.name if cat else "Custom"
+    dept_map: dict[int, str] = {}
+    for action in actions:
+        if action.custom_action_type_id:
+            cat = session.get(CustomActionType, action.custom_action_type_id)
+            name_map[action.id] = cat.name if cat else "Custom"
         else:
-            name_map[a.id] = a.action_type.value if a.action_type else "Unknown"
+            name_map[action.id] = action.action_type.value if action.action_type else "Unknown"
+        dept_map[action.id] = action.department
 
     events = session.exec(
         select(ActionEvent)
@@ -196,16 +315,96 @@ def patient_timeline(patient_id: int, session: Session = Depends(get_session)):
         .order_by(ActionEvent.timestamp.asc())  # type: ignore[union-attr]
     ).all()
 
+    actor_ids = sorted({event.actor_id for event in events if event.actor_id is not None})
+    actor_map: dict[int, User] = {}
+    if actor_ids:
+        actors = session.exec(select(User).where(User.id.in_(actor_ids))).all()  # type: ignore[union-attr]
+        actor_map = {actor.id: actor for actor in actors if actor.id is not None}
+
     results = []
-    for e in events:
-        d = e.model_dump()
-        d["action_name"] = name_map.get(e.action_id, "Unknown")
-        results.append(d)
+    for event in events:
+        data = event.model_dump()
+        data["action_name"] = name_map.get(event.action_id, "Unknown")
+        data["department"] = dept_map.get(event.action_id)
+        actor = actor_map.get(event.actor_id) if event.actor_id is not None else None
+        if actor:
+            data["actor_name"] = actor.name
+            data["actor_department"] = actor.department
+        else:
+            data["actor_name"] = None
+            data["actor_department"] = None
+        results.append(data)
 
     return results
 
 
-@router.get("")
-def list_actions(session: Session = Depends(get_session)):
+@router.get("/department/{department}")
+def department_queue(
+    department: str,
+    include_terminal: bool = False,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    if not can_access_department_queue(current_user.role, department):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Role '{current_user.role.value}' cannot access '{department}' queue",
+        )
+
+    actions = session.exec(
+        select(ClinicalAction).order_by(ClinicalAction.created_at.asc())  # type: ignore[union-attr]
+    ).all()
+
+    results = []
+    for action in actions:
+        data = action_response(action, session)
+        queue_departments = data["queue_departments"]
+        if department_matches(department, queue_departments):
+            results.append(data)
+            continue
+        if include_terminal and department_matches(department, [action.department]):
+            results.append(data)
+
+    results.sort(
+        key=lambda action_data: (
+            0 if action_data["is_overdue"] else 1,
+            PRIORITY_RANK.get(action_data["priority"], 9),
+            action_data.get("sla_deadline") or "",
+        )
+    )
+    return results
+
+
+@router.get("/escalations")
+def list_escalations(
+    session: Session = Depends(get_session),
+    _current_user: User = Depends(get_current_user),
+):
     actions = session.exec(select(ClinicalAction)).all()
-    return [action_response(a, session) for a in actions]
+    escalations = []
+
+    for action in actions:
+        data = action_response(action, session)
+        if not data["is_overdue"]:
+            continue
+
+        patient = session.get(Patient, action.patient_id)
+        data["patient_name"] = patient.name if patient else "Unknown"
+        escalations.append(data)
+
+    escalations.sort(
+        key=lambda action_data: (
+            PRIORITY_RANK.get(action_data["priority"], 9),
+            action_data.get("sla_deadline") or "",
+        )
+    )
+    return escalations
+
+
+@router.get("")
+def list_actions(
+    session: Session = Depends(get_session),
+    _current_user: User = Depends(get_current_user),
+):
+    actions = session.exec(select(ClinicalAction)).all()
+    return [action_response(action, session) for action in actions]

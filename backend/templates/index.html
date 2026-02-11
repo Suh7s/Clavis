@@ -3,10 +3,27 @@
 {% block content %}
 <div class="flex items-center justify-between mb-6">
   <h1 class="text-2xl font-bold text-gray-800">Patients</h1>
-  <button onclick="document.getElementById('newPatientModal').classList.toggle('hidden')"
-    class="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700">
-    + New Patient
-  </button>
+  <div class="flex items-center gap-2">
+    <a id="statusBoardEntry" href="/status-board/view"
+      class="border border-gray-300 text-gray-700 text-sm px-4 py-2 rounded-lg hover:bg-gray-50">
+      Status Board
+    </a>
+    <button onclick="document.getElementById('newPatientModal').classList.toggle('hidden')"
+      class="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700">
+      + New Patient
+    </button>
+  </div>
+</div>
+
+<div class="bg-white border rounded-lg p-4 mb-6">
+  <h3 class="font-semibold text-gray-700 mb-2">Department Queues</h3>
+  <div class="flex flex-wrap gap-2 text-sm">
+    <a href="/departments/Radiology/view" class="px-3 py-1.5 rounded border hover:bg-gray-50">Radiology</a>
+    <a href="/departments/Laboratory/view" class="px-3 py-1.5 rounded border hover:bg-gray-50">Laboratory</a>
+    <a href="/departments/Pharmacy/view" class="px-3 py-1.5 rounded border hover:bg-gray-50">Pharmacy</a>
+    <a href="/departments/Nursing/view" class="px-3 py-1.5 rounded border hover:bg-gray-50">Nursing</a>
+    <a href="/departments/Referral/view" class="px-3 py-1.5 rounded border hover:bg-gray-50">Referral</a>
+  </div>
 </div>
 
 <div id="newPatientModal" class="hidden mb-6 bg-white rounded-lg border p-4">
@@ -28,13 +45,28 @@
     </div>
     <button type="submit" class="bg-green-600 text-white text-sm px-4 py-1.5 rounded hover:bg-green-700">Create</button>
   </form>
+  <p id="patientError" class="text-sm text-red-600 mt-3 hidden"></p>
 </div>
 
 <div id="patientList" class="space-y-2"></div>
 
 <script>
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[ch]));
+}
+
 async function loadPatients() {
   const res = await fetch('/patients');
+  if (!res.ok) {
+    document.getElementById('patientList').innerHTML = '<p class="text-red-600 text-sm">Failed to load patients.</p>';
+    return;
+  }
   const patients = await res.json();
   const el = document.getElementById('patientList');
   if (patients.length === 0) {
@@ -46,8 +78,8 @@ async function loadPatients() {
        class="block bg-white border rounded-lg px-5 py-4 hover:border-blue-400 hover:shadow-sm transition">
       <div class="flex items-center justify-between">
         <div>
-          <span class="font-semibold text-gray-800">${p.name}</span>
-          <span class="ml-3 text-sm text-gray-500">${p.age}y, ${p.gender}</span>
+          <span class="font-semibold text-gray-800">${escapeHtml(p.name)}</span>
+          <span class="ml-3 text-sm text-gray-500">${p.age}y, ${escapeHtml(p.gender)}</span>
         </div>
         <span class="text-xs text-gray-400">ID #${p.id}</span>
       </div>
@@ -57,15 +89,40 @@ async function loadPatients() {
 
 async function createPatient(e) {
   e.preventDefault();
-  await fetch('/patients', {
+  const errEl = document.getElementById('patientError');
+  errEl.classList.add('hidden');
+  const nameValue = document.getElementById('pName').value.trim();
+  const ageValue = Number.parseInt(document.getElementById('pAge').value, 10);
+  if (!nameValue) {
+    errEl.textContent = 'Name is required.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (!Number.isFinite(ageValue)) {
+    errEl.textContent = 'Age must be a valid number.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  const res = await fetch('/patients', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({
-      name: document.getElementById('pName').value,
-      age: parseInt(document.getElementById('pAge').value),
+      name: nameValue,
+      age: ageValue,
       gender: document.getElementById('pGender').value
     })
   });
+  if (!res.ok) {
+    let msg = 'Failed to create patient.';
+    try {
+      const payload = await res.json();
+      msg = payload.detail || payload.error || msg;
+    } catch {}
+    errEl.textContent = msg;
+    errEl.classList.remove('hidden');
+    return;
+  }
   document.getElementById('pName').value = '';
   document.getElementById('pAge').value = '';
   document.getElementById('newPatientModal').classList.add('hidden');
@@ -73,5 +130,16 @@ async function createPatient(e) {
 }
 
 loadPatients();
+setInterval(() => {
+  if (document.visibilityState === 'visible') {
+    loadPatients();
+  }
+}, 5000);
+window.addEventListener('focus', loadPatients);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    loadPatients();
+  }
+});
 </script>
 {% endblock %}

@@ -13,6 +13,7 @@ TERMINAL_STATES = {
     ActionType.MEDICATION: "ADMINISTERED",
     ActionType.REFERRAL: "CLOSED",
     ActionType.CARE_INSTRUCTION: "COMPLETED",
+    ActionType.VITALS_REQUEST: "RECORDED",
 }
 
 
@@ -30,6 +31,8 @@ def compute_custom_sla_deadline(priority: Priority, cat: CustomActionType) -> da
 
 
 def is_terminal_state(action_type: str | None, state: str, custom_terminal: str | None = None) -> bool:
+    if state in {"FAILED", "CANCELLED"}:
+        return True
     if custom_terminal is not None:
         return state == custom_terminal
     if action_type is None:

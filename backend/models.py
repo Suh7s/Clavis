@@ -11,12 +11,33 @@ class ActionType(str, Enum):
     MEDICATION = "MEDICATION"
     REFERRAL = "REFERRAL"
     CARE_INSTRUCTION = "CARE_INSTRUCTION"
+    VITALS_REQUEST = "VITALS_REQUEST"
 
 
 class Priority(str, Enum):
     ROUTINE = "ROUTINE"
     URGENT = "URGENT"
     CRITICAL = "CRITICAL"
+
+
+class UserRole(str, Enum):
+    DOCTOR = "doctor"
+    NURSE = "nurse"
+    PHARMACIST = "pharmacist"
+    LAB_TECH = "lab_tech"
+    RADIOLOGIST = "radiologist"
+    ADMIN = "admin"
+
+
+class User(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    email: str = Field(unique=True, index=True)
+    password_hash: str
+    role: UserRole
+    department: str = ""
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class Patient(SQLModel, table=True):
@@ -31,7 +52,7 @@ class CustomActionType(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(unique=True)
     department: str
-    states_json: str = Field(default="[]")  # JSON list of ordered states
+    states_json: str = Field(default="[]")
     terminal_state: str
     sla_routine_minutes: int = 120
     sla_urgent_minutes: int = 30
@@ -50,8 +71,12 @@ class CustomActionType(SQLModel, table=True):
 class ClinicalAction(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     patient_id: int = Field(foreign_key="patient.id")
+    created_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    assigned_to: Optional[int] = Field(default=None, foreign_key="user.id")
     action_type: Optional[ActionType] = None
     custom_action_type_id: Optional[int] = Field(default=None, foreign_key="customactiontype.id")
+    title: str = ""
+    notes: str = ""
     current_state: str
     priority: Priority
     department: str
@@ -62,6 +87,9 @@ class ClinicalAction(SQLModel, table=True):
 class ActionEvent(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     action_id: int = Field(foreign_key="clinicalaction.id")
+    actor_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    actor_role: Optional[UserRole] = None
     previous_state: str
     new_state: str
+    notes: str = ""
     timestamp: datetime = Field(default_factory=datetime.utcnow)

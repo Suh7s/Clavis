@@ -2,23 +2,26 @@ from models import ActionType, CustomActionType
 
 VALID_TRANSITIONS: dict[str, dict[str, list[str]]] = {
     ActionType.DIAGNOSTIC: {
-        "REQUESTED": ["SAMPLE_COLLECTED"],
+        "REQUESTED": ["SAMPLE_COLLECTED", "PROCESSING", "CANCELLED"],
         "SAMPLE_COLLECTED": ["PROCESSING"],
-        "PROCESSING": ["COMPLETED"],
+        "PROCESSING": ["COMPLETED", "FAILED"],
     },
     ActionType.MEDICATION: {
-        "PRESCRIBED": ["DISPENSED"],
+        "PRESCRIBED": ["DISPENSED", "CANCELLED"],
         "DISPENSED": ["ADMINISTERED"],
     },
     ActionType.REFERRAL: {
-        "INITIATED": ["ACKNOWLEDGED"],
+        "INITIATED": ["ACKNOWLEDGED", "CANCELLED"],
         "ACKNOWLEDGED": ["REVIEWED"],
         "REVIEWED": ["CLOSED"],
     },
     ActionType.CARE_INSTRUCTION: {
-        "ISSUED": ["ACKNOWLEDGED"],
+        "ISSUED": ["ACKNOWLEDGED", "CANCELLED"],
         "ACKNOWLEDGED": ["IN_PROGRESS"],
         "IN_PROGRESS": ["COMPLETED"],
+    },
+    ActionType.VITALS_REQUEST: {
+        "REQUESTED": ["RECORDED", "CANCELLED"],
     },
 }
 
@@ -27,9 +30,10 @@ INITIAL_STATES: dict[str, str] = {
     ActionType.MEDICATION: "PRESCRIBED",
     ActionType.REFERRAL: "INITIATED",
     ActionType.CARE_INSTRUCTION: "ISSUED",
+    ActionType.VITALS_REQUEST: "REQUESTED",
 }
 
-TERMINAL_STATES: set[str] = {"COMPLETED", "ADMINISTERED", "CLOSED"}
+TERMINAL_STATES: set[str] = {"COMPLETED", "ADMINISTERED", "CLOSED", "RECORDED", "FAILED", "CANCELLED"}
 
 
 def validate_transition(action_type: str, current_state: str, new_state: str) -> bool:

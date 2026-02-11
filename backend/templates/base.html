@@ -12,13 +12,104 @@
 </head>
 <body class="bg-gray-50 min-h-screen">
   <nav class="bg-white border-b border-gray-200 px-6 py-4">
-    <div class="max-w-5xl mx-auto flex items-center justify-between">
-      <a href="/" class="text-xl font-bold text-gray-900 tracking-tight">Clavis</a>
-      <span class="text-sm text-gray-500">Clinical Workflow Engine</span>
+    <div class="max-w-5xl mx-auto flex items-center justify-between gap-4">
+      <a href="/" class="text-xl font-bold text-gray-900 tracking-tight shrink-0">Clavis</a>
+      <div class="flex items-center gap-3 text-sm flex-wrap justify-end">
+        <a id="statusBoardLink" href="/status-board/view" class="text-gray-600 hover:text-gray-900">Status Board</a>
+        <span class="text-gray-300">|</span>
+        <span id="authUser" class="text-gray-500">Not signed in</span>
+        <button id="authButton" onclick="logout()" class="hidden border border-gray-300 rounded px-2 py-1 text-gray-600 hover:bg-gray-50">Logout</button>
+      </div>
     </div>
   </nav>
   <main class="max-w-5xl mx-auto px-6 py-8">
     {% block content %}{% endblock %}
   </main>
+  <script>
+    function getAuthToken() {
+      return sessionStorage.getItem('clavis_token');
+    }
+
+    function getCurrentUser() {
+      const raw = sessionStorage.getItem('clavis_user');
+      if (!raw) return null;
+      try { return JSON.parse(raw); } catch { return null; }
+    }
+
+    function setAuthSession(token, user) {
+      sessionStorage.setItem('clavis_token', token);
+      sessionStorage.setItem('clavis_user', JSON.stringify(user));
+    }
+
+    function clearAuthSession() {
+      sessionStorage.removeItem('clavis_token');
+      sessionStorage.removeItem('clavis_user');
+    }
+
+    function logout() {
+      clearAuthSession();
+      location.href = '/login';
+    }
+
+    function updateAuthUI() {
+      const user = getCurrentUser();
+      const userEl = document.getElementById('authUser');
+      const buttonEl = document.getElementById('authButton');
+      if (!user) {
+        userEl.textContent = 'Not signed in';
+        buttonEl.classList.add('hidden');
+        document.getElementById('statusBoardLink').classList.add('hidden');
+        return;
+      }
+      userEl.textContent = `${user.name} (${(user.role || '').toUpperCase()})`;
+      buttonEl.classList.remove('hidden');
+      document.getElementById('statusBoardLink').classList.remove('hidden');
+    }
+
+    function isPublicPath(pathname) {
+      return pathname === '/login';
+    }
+
+    function shouldAttachAuth(url) {
+      return !url.startsWith('/auth/login') &&
+             !url.startsWith('/api/v1/auth/login') &&
+             !url.startsWith('/health');
+    }
+
+    const __nativeFetch = window.fetch.bind(window);
+    window.fetch = async function(input, init = {}) {
+      const token = getAuthToken();
+      let url = '';
+      if (typeof input === 'string') {
+        url = input;
+      } else if (input && typeof input.url === 'string') {
+        url = input.url;
+      }
+
+      const isSameOrigin = !url || url.startsWith('/') || url.startsWith(window.location.origin);
+      if (token && isSameOrigin && shouldAttachAuth(url.replace(window.location.origin, ''))) {
+        const headers = new Headers(init.headers || {});
+        if (!headers.has('Authorization')) {
+          headers.set('Authorization', `Bearer ${token}`);
+        }
+        init.headers = headers;
+      }
+
+      const response = await __nativeFetch(input, init);
+      if (response.status === 401 && !isPublicPath(window.location.pathname)) {
+        clearAuthSession();
+        location.href = '/login';
+      }
+      return response;
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!isPublicPath(window.location.pathname) && !getAuthToken()) {
+        location.href = '/login';
+        return;
+      }
+      updateAuthUI();
+    });
+  </script>
 </body>
 </html>
