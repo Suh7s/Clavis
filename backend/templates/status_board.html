@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Clavis — Status Board{% endblock %}
+{% block content %}
+<a href="/" class="text-sm text-blue-600 hover:underline mb-4 inline-block">&larr; Home</a>
+
+<div class="mb-6">
+  <div class="flex items-center justify-between gap-3">
+    <h1 class="text-2xl font-bold text-gray-800">Live Status Board</h1>
+    <span id="wsStatus" class="text-xs px-3 py-1.5 rounded-full bg-gray-200 text-gray-500">Connecting...</span>
+  </div>
+  <p class="text-sm text-gray-500">Hospital-wide bottlenecks, queue health, and escalations.</p>
+</div>
+
+<div id="metrics" class="grid grid-cols-3 gap-3 mb-6"></div>
+
+<div class="bg-white border rounded-lg mb-6 overflow-hidden">
+  <div class="px-4 py-3 border-b bg-gray-50">
+    <h2 class="font-semibold text-gray-700">Patient Coordination Grid</h2>
+  </div>
+  <div id="patientRows"></div>
+</div>
+
+<div class="bg-white border rounded-lg overflow-hidden">
+  <div class="px-4 py-3 border-b bg-gray-50 flex items-center justify-between">
+    <h2 class="font-semibold text-gray-700">SLA Escalations</h2>
+    <button onclick="loadBoard()" class="text-xs border rounded px-3 py-1 hover:bg-gray-100">Refresh</button>
+  </div>
+  <div id="escalationRows"></div>
+</div>
+
+<script>
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[ch]));
+}
+
+function metricCard(label, value, bg) {
+  return `
+    <div class="${bg} border rounded-lg px-4 py-3 text-center">
+      <div class="text-2xl font-bold text-gray-800">${value}</div>
+      <div class="text-xs text-gray-500">${escapeHtml(label)}</div>
+    </div>
+  `;
+}
+
+function renderPatients(rows) {
+  const el = document.getElementById('patientRows');
+  if (rows.length === 0) {
+    el.innerHTML = '<p class="text-sm text-gray-500 px-4 py-4">No patients found.</p>';
+    return;
+  }
+
+  el.innerHTML = rows.map(row => {
+    const statusClass = row.overdue > 0 ? 'text-red-700 bg-red-50 border-red-200' : 'text-green-700 bg-green-50 border-green-200';
+    return `
+      <div class="px-4 py-3 border-b last:border-b-0">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <a href="/patients/${row.patient_id}/view" class="font-semibold text-blue-600 hover:underline">${escapeHtml(row.patient_name)}</a>
+            <p class="text-xs text-gray-500">Patient #${row.patient_id}</p>
+          </div>
+          <div class="text-xs text-gray-600 text-right">
+            <div>Pending: ${row.pending}</div>
+            <div>In Progress: ${row.in_progress}</div>
+            <div>Completed: ${row.completed}</div>
+          </div>
+          <div class="text-xs text-gray-600 text-right">
+            <div>Bottleneck: ${escapeHtml(row.bottleneck_department || 'None')}</div>
+            <div>Updated: ${row.last_updated ? new Date(row.last_updated + 'Z').toLocaleString() : '—'}</div>
+          </div>
+          <span class="text-xs font-semibold px-2 py-0.5 rounded border ${statusClass}">
+            ${row.overdue} overdue
+          </span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderEscalations(rows) {
+  const el = document.getElementById('escalationRows');
+  if (rows.length === 0) {
+    el.innerHTML = '<p class="text-sm text-gray-500 px-4 py-4">No overdue actions.</p>';
+    return;
+  }
+
+  el.innerHTML = rows.map(row => `
+    <div class="px-4 py-3 border-b last:border-b-0">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <div class="font-semibold text-gray-800">${escapeHtml(row.patient_name)} - ${escapeHtml(row.title || row.action_type || row.custom_type_name || 'Untitled')}</div>
+          <p class="text-xs text-gray-500">State: ${escapeHtml(row.current_state)} | Department: ${escapeHtml(row.queue_department || row.department || '—')}</p>
+        </div>
+        <div class="text-xs text-right text-gray-600">
+          <div>Priority: ${escapeHtml(row.priority)}</div>
+          <div>SLA: ${row.sla_deadline ? new Date(row.sla_deadline + 'Z').toLocaleString() : '—'}</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function loadBoard() {
+  const [boardRes, escalationRes] = await Promise.all([
+    fetch('/patients/status-board'),
+    fetch('/actions/escalations')
+  ]);
+  if (boardRes.status === 403 || escalationRes.status === 403) {
+    document.getElementById('metrics').innerHTML = '';
+    document.getElementById('patientRows').innerHTML = '<p class="text-sm text-red-600 px-4 py-4">Your role cannot access the status board.</p>';
+    document.getElementById('escalationRows').innerHTML = '';
+    return;
+  }
+  if (!boardRes.ok || !escalationRes.ok) {
+    document.getElementById('metrics').innerHTML = '';
+    document.getElementById('patientRows').innerHTML = '<p class="text-sm text-red-600 px-4 py-4">Status board failed to load.</p>';
+    document.getElementById('escalationRows').innerHTML = '';
+    return;
+  }
+  const board = await boardRes.json();
+  const escalations = await escalationRes.json();
+
+  document.getElementById('metrics').innerHTML = [
+    metricCard('Patients', board.total_patients, 'bg-white'),
+    metricCard('Overdue Actions', board.overdue_actions, board.overdue_actions > 0 ? 'bg-red-50' : 'bg-white'),
+    metricCard('Escalations', escalations.length, escalations.length > 0 ? 'bg-amber-50' : 'bg-white'),
+  ].join('');
+
+  renderPatients(board.patients || []);
+  renderEscalations(escalations || []);
+}
+
+const wsEl = document.getElementById('wsStatus');
+let ws;
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const token = getAuthToken() || '';
+  ws = new WebSocket(`${proto}//${location.host}/ws/status-board?token=${encodeURIComponent(token)}`);
+  ws.onopen = () => {
+    wsEl.textContent = 'Live';
+    wsEl.className = 'text-xs px-3 py-1.5 rounded-full bg-green-100 text-green-700';
+  };
+  ws.onmessage = () => loadBoard();
+  ws.onclose = () => {
+    wsEl.textContent = 'Reconnecting...';
+    wsEl.className = 'text-xs px-3 py-1.5 rounded-full bg-amber-100 text-amber-700';
+    setTimeout(connectWS, 2000);
+  };
+}
+
+connectWS();
+loadBoard();
+setInterval(loadBoard, 15000);
+</script>
+{% endblock %}

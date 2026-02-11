@@ -6,41 +6,152 @@
 
 <div id="patientHeader" class="mb-6"></div>
 
-<div id="summary" class="grid grid-cols-5 gap-3 mb-6"></div>
+<div id="summary" class="grid grid-cols-5 gap-3 mb-2"></div>
+<div id="summaryText" class="text-sm text-gray-600 mb-6"></div>
 
+<!-- Action controls -->
 <div class="flex items-center justify-between mb-4">
   <h2 class="text-lg font-bold text-gray-800">Clinical Actions</h2>
-  <button onclick="document.getElementById('newActionForm').classList.toggle('hidden')"
-    class="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700">
-    + New Action
-  </button>
+  <div class="flex gap-2">
+    <button id="btnCustomType" onclick="togglePanel('customTypeForm')"
+      class="border border-gray-300 text-gray-700 text-sm px-4 py-2 rounded-lg hover:bg-gray-50">
+      + Custom Type
+    </button>
+    <button id="btnNewAction" onclick="togglePanel('newActionForm')"
+      class="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700">
+      + New Action
+    </button>
+  </div>
 </div>
 
-<div id="newActionForm" class="hidden mb-6 bg-white border rounded-lg p-4">
+<!-- Custom Type Creation -->
+<div id="customTypeForm" class="hidden mb-6 bg-white border rounded-lg p-5">
+  <h3 class="font-semibold text-gray-700 mb-3">Define Custom Action Type</h3>
+  <form onsubmit="createCustomType(event)" class="space-y-3">
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Name</label>
+        <input id="ctName" required class="border rounded px-3 py-1.5 text-sm w-full" placeholder="e.g. BLOOD_TRANSFUSION">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Department</label>
+        <input id="ctDept" required class="border rounded px-3 py-1.5 text-sm w-full" placeholder="e.g. Blood Bank">
+      </div>
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">States (comma-separated, in order)</label>
+      <input id="ctStates" required class="border rounded px-3 py-1.5 text-sm w-full" placeholder="e.g. ORDERED, CROSS_MATCHED, TRANSFUSING, COMPLETED">
+    </div>
+    <div class="grid grid-cols-3 gap-3">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">SLA Routine (min)</label>
+        <input id="ctSlaR" type="number" value="120" class="border rounded px-3 py-1.5 text-sm w-full">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">SLA Urgent (min)</label>
+        <input id="ctSlaU" type="number" value="30" class="border rounded px-3 py-1.5 text-sm w-full">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">SLA Critical (min)</label>
+        <input id="ctSlaC" type="number" value="10" class="border rounded px-3 py-1.5 text-sm w-full">
+      </div>
+    </div>
+    <button type="submit" class="bg-purple-600 text-white text-sm px-4 py-1.5 rounded hover:bg-purple-700">Create Type</button>
+  </form>
+</div>
+
+<!-- Create Action -->
+<div id="newActionForm" class="hidden mb-6 bg-white border rounded-lg p-5">
   <h3 class="font-semibold text-gray-700 mb-3">Create Action</h3>
-  <form onsubmit="createAction(event)" class="flex gap-3 items-end flex-wrap">
-    <div>
-      <label class="block text-xs text-gray-500 mb-1">Type</label>
-      <select id="aType" class="border rounded px-3 py-1.5 text-sm" onchange="onTypeChange()">
-        <option value="DIAGNOSTIC">Diagnostic</option>
-        <option value="MEDICATION">Medication</option>
-        <option value="REFERRAL">Referral</option>
-        <option value="CARE_INSTRUCTION">Care Instruction</option>
-      </select>
+  <form onsubmit="createAction(event)" class="space-y-3">
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Type</label>
+        <select id="aType" class="border rounded px-3 py-1.5 text-sm w-full">
+          <option value="DIAGNOSTIC">Diagnostic</option>
+          <option value="MEDICATION">Medication</option>
+          <option value="REFERRAL">Referral</option>
+          <option value="CARE_INSTRUCTION">Care Instruction</option>
+          <option value="VITALS_REQUEST">Vitals Request</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Priority</label>
+        <select id="aPriority" class="border rounded px-3 py-1.5 text-sm w-full">
+          <option value="ROUTINE">Routine</option>
+          <option value="URGENT">Urgent</option>
+          <option value="CRITICAL">Critical</option>
+        </select>
+      </div>
     </div>
     <div>
-      <label class="block text-xs text-gray-500 mb-1">Priority</label>
-      <select id="aPriority" class="border rounded px-3 py-1.5 text-sm">
-        <option value="ROUTINE">Routine</option>
-        <option value="URGENT">Urgent</option>
-        <option value="CRITICAL">Critical</option>
-      </select>
+      <label class="block text-xs text-gray-500 mb-1">Title</label>
+      <input id="aTitle" required class="border rounded px-3 py-1.5 text-sm w-full" placeholder="e.g. Chest X-Ray, Amoxicillin 500mg">
     </div>
-    <button type="submit" class="bg-green-600 text-white text-sm px-4 py-1.5 rounded hover:bg-green-700">Create</button>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">Department Target (optional)</label>
+      <input id="aDeptTarget" class="border rounded px-3 py-1.5 text-sm w-full" placeholder="Leave empty for auto-routing">
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">Notes</label>
+      <textarea id="aNotes" rows="2" class="border rounded px-3 py-1.5 text-sm w-full" placeholder="Clinical notes, dosage, instructions..."></textarea>
+    </div>
+    <button type="submit" class="bg-green-600 text-white text-sm px-4 py-1.5 rounded hover:bg-green-700">Create Action</button>
   </form>
 </div>
 
 <div id="actionList" class="space-y-3 mb-8"></div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="hidden fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+  <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-gray-800">Edit Action <span id="editId"></span></h3>
+      <button onclick="closeEdit()" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+    </div>
+    <form onsubmit="saveEdit(event)" class="space-y-3">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Title</label>
+        <input id="editTitle" class="border rounded px-3 py-1.5 text-sm w-full">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Notes</label>
+        <textarea id="editNotes" rows="3" class="border rounded px-3 py-1.5 text-sm w-full"></textarea>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Priority</label>
+        <select id="editPriority" class="border rounded px-3 py-1.5 text-sm w-full">
+          <option value="ROUTINE">Routine</option>
+          <option value="URGENT">Urgent</option>
+          <option value="CRITICAL">Critical</option>
+        </select>
+      </div>
+      <p class="text-xs text-gray-400">Changing priority will recompute the SLA deadline.</p>
+      <div class="flex gap-2 justify-end">
+        <button type="button" onclick="closeEdit()" class="border text-gray-600 text-sm px-4 py-1.5 rounded hover:bg-gray-50">Cancel</button>
+        <button type="submit" class="bg-blue-600 text-white text-sm px-4 py-1.5 rounded hover:bg-blue-700">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Transition Modal -->
+<div id="transitionModal" class="hidden fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+  <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+    <h3 class="font-bold text-gray-800 mb-1">Transition Action <span id="transId"></span></h3>
+    <p class="text-sm text-gray-500 mb-4" id="transLabel"></p>
+    <form onsubmit="confirmTransition(event)" class="space-y-3">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Notes (optional)</label>
+        <textarea id="transNotes" rows="2" class="border rounded px-3 py-1.5 text-sm w-full" placeholder="Observations, results, remarks..."></textarea>
+      </div>
+      <div class="flex gap-2 justify-end">
+        <button type="button" onclick="closeTransition()" class="border text-gray-600 text-sm px-4 py-1.5 rounded hover:bg-gray-50">Cancel</button>
+        <button type="submit" class="bg-blue-600 text-white text-sm px-4 py-1.5 rounded hover:bg-blue-700">Confirm</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <h2 class="text-lg font-bold text-gray-800 mb-3">Event Timeline</h2>
 <div id="timeline" class="space-y-2 mb-8"></div>
@@ -49,28 +160,53 @@
 
 <script>
 const PID = {{ patient_id }};
+const CURRENT_USER = getCurrentUser();
+let editingActionId = null;
+let pendingTransition = null;
 
 const TRANSITIONS = {
-  DIAGNOSTIC:        { REQUESTED: ['SAMPLE_COLLECTED'], SAMPLE_COLLECTED: ['PROCESSING'], PROCESSING: ['COMPLETED'] },
-  MEDICATION:        { PRESCRIBED: ['DISPENSED'], DISPENSED: ['ADMINISTERED'] },
-  REFERRAL:          { INITIATED: ['ACKNOWLEDGED'], ACKNOWLEDGED: ['REVIEWED'], REVIEWED: ['CLOSED'] },
-  CARE_INSTRUCTION:  { ISSUED: ['ACKNOWLEDGED'], ACKNOWLEDGED: ['IN_PROGRESS'], IN_PROGRESS: ['COMPLETED'] },
+  DIAGNOSTIC:        { REQUESTED: ['SAMPLE_COLLECTED', 'PROCESSING', 'CANCELLED'], SAMPLE_COLLECTED: ['PROCESSING'], PROCESSING: ['COMPLETED', 'FAILED'] },
+  MEDICATION:        { PRESCRIBED: ['DISPENSED', 'CANCELLED'], DISPENSED: ['ADMINISTERED'] },
+  REFERRAL:          { INITIATED: ['ACKNOWLEDGED', 'CANCELLED'], ACKNOWLEDGED: ['REVIEWED'], REVIEWED: ['CLOSED'] },
+  CARE_INSTRUCTION:  { ISSUED: ['ACKNOWLEDGED', 'CANCELLED'], ACKNOWLEDGED: ['IN_PROGRESS'], IN_PROGRESS: ['COMPLETED'] },
+  VITALS_REQUEST:    { REQUESTED: ['RECORDED', 'CANCELLED'] },
 };
 
-let customTypes = [];  // loaded from API
-let customTransitions = {};  // cat_id -> { state: [next] }
+let customTypes = [];
+let customTransitions = {};
 
 const PRIORITY_COLORS = { ROUTINE: 'bg-gray-100 text-gray-600', URGENT: 'bg-amber-100 text-amber-700', CRITICAL: 'bg-red-100 text-red-700' };
-const STATE_COLORS = { COMPLETED: 'bg-green-100 text-green-700', ADMINISTERED: 'bg-green-100 text-green-700', CLOSED: 'bg-green-100 text-green-700' };
+const STATE_COLORS = {
+  COMPLETED: 'bg-green-100 text-green-700',
+  ADMINISTERED: 'bg-green-100 text-green-700',
+  CLOSED: 'bg-green-100 text-green-700',
+  RECORDED: 'bg-green-100 text-green-700',
+  CANCELLED: 'bg-gray-100 text-gray-600',
+  FAILED: 'bg-red-100 text-red-700',
+};
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[ch]));
+}
+
+function togglePanel(id) {
+  document.getElementById(id).classList.toggle('hidden');
+}
 
 function stateBadge(state, terminalState) {
   const isTerminal = terminalState ? state === terminalState : !!STATE_COLORS[state];
   const color = isTerminal ? 'bg-green-100 text-green-700' : (STATE_COLORS[state] || 'bg-blue-100 text-blue-700');
-  return `<span class="text-xs font-semibold px-2 py-0.5 rounded-full ${color}">${state}</span>`;
+  return `<span class="text-xs font-semibold px-2 py-0.5 rounded-full ${color}">${escapeHtml(state)}</span>`;
 }
 
 function priorityBadge(p) {
-  return `<span class="text-xs font-semibold px-2 py-0.5 rounded-full ${PRIORITY_COLORS[p]}">${p}</span>`;
+  return `<span class="text-xs font-semibold px-2 py-0.5 rounded-full ${PRIORITY_COLORS[p]}">${escapeHtml(p)}</span>`;
 }
 
 function getNextStates(a) {
@@ -91,11 +227,17 @@ function getTerminalState(a) {
 
 function getDisplayName(a) {
   if (a.custom_type_name) return a.custom_type_name;
-  return (a.action_type || '').replace('_', ' ');
+  return (a.action_type || '').replace(/_/g, ' ');
 }
 
 async function loadCustomTypes() {
   const res = await fetch('/custom-action-types');
+  if (!res.ok) {
+    customTypes = [];
+    customTransitions = {};
+    updateTypeDropdown();
+    return;
+  }
   customTypes = await res.json();
   customTransitions = {};
   for (const ct of customTypes) {
@@ -110,7 +252,6 @@ async function loadCustomTypes() {
 
 function updateTypeDropdown() {
   const sel = document.getElementById('aType');
-  // Remove old custom options
   sel.querySelectorAll('option[data-custom]').forEach(o => o.remove());
   for (const ct of customTypes) {
     const opt = document.createElement('option');
@@ -121,15 +262,18 @@ function updateTypeDropdown() {
   }
 }
 
-function onTypeChange() {}
-
 async function loadPatient() {
   const res = await fetch(`/patients/${PID}`);
+  if (!res.ok) {
+    document.getElementById('patientHeader').innerHTML = '<h1 class="text-xl font-bold text-red-700">Failed to load patient.</h1>';
+    document.getElementById('actionList').innerHTML = '<p class="text-red-600 text-sm">Unable to load actions right now.</p>';
+    return;
+  }
   const data = await res.json();
 
   document.getElementById('patientHeader').innerHTML = `
-    <h1 class="text-2xl font-bold text-gray-800">${data.name}</h1>
-    <p class="text-sm text-gray-500">${data.age}y, ${data.gender} — Patient #${data.id}</p>
+    <h1 class="text-2xl font-bold text-gray-800">${escapeHtml(data.name)}</h1>
+    <p class="text-sm text-gray-500">${data.age}y, ${escapeHtml(data.gender)} — Patient #${data.id}</p>
   `;
 
   const el = document.getElementById('actionList');
@@ -141,30 +285,48 @@ async function loadPatient() {
   el.innerHTML = data.actions.map(a => {
     const nextStates = getNextStates(a);
     const terminal = getTerminalState(a);
-    const transitionUI = nextStates.length > 0
-      ? `<div class="flex gap-2 mt-2">${nextStates.map(s =>
-          `<button onclick="doTransition(${a.id}, '${s}')"
-            class="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">${s}</button>`
+    const isComplete = nextStates.length === 0;
+    const transitionUI = !isComplete
+      ? `<div class="flex gap-2 mt-3">${nextStates.map(s =>
+          `<button onclick="openTransition(${a.id}, '${a.current_state}', '${s}')"
+            class="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition">${s}</button>`
         ).join('')}</div>`
-      : '<span class="text-xs text-green-600 font-medium mt-2 inline-block">Complete</span>';
+      : '';
 
     const overdueTag = a.is_overdue
       ? '<span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-600 text-white ml-2">OVERDUE</span>'
       : '';
 
+    const completeBadge = isComplete
+      ? '<span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-600 text-white ml-2">DONE</span>'
+      : '';
+
     const slaTime = a.sla_deadline ? new Date(a.sla_deadline + 'Z').toLocaleTimeString() : '—';
+    const titleDisplay = a.title ? escapeHtml(a.title) : '<span class="italic text-gray-400">No title</span>';
+    const notesDisplay = a.notes ? `<p class="text-sm text-gray-500 mt-1">${escapeHtml(a.notes)}</p>` : '';
 
     return `
       <div class="bg-white border rounded-lg px-5 py-4 ${a.is_overdue ? 'border-red-300 bg-red-50' : ''}">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <span class="font-semibold text-gray-700">${getDisplayName(a)}</span>
-            ${stateBadge(a.current_state, terminal)}
-            ${priorityBadge(a.priority)}
-            ${overdueTag}
+        <div class="flex items-start justify-between">
+          <div class="flex-1">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-xs text-gray-400 uppercase tracking-wide">${escapeHtml(getDisplayName(a))}</span>
+              ${stateBadge(a.current_state, terminal)}
+              ${priorityBadge(a.priority)}
+              ${overdueTag}
+              ${completeBadge}
+            </div>
+            <div class="mt-1 font-semibold text-gray-800">${titleDisplay}</div>
+            ${notesDisplay}
           </div>
-          <div class="text-xs text-gray-400">
-            <span>${a.department}</span> · <span>SLA ${slaTime}</span> · <span>#${a.id}</span>
+          <div class="flex items-center gap-2 ml-4 shrink-0">
+            <button onclick="openEdit(${a.id}, '${encodeURIComponent(a.title || '')}', '${encodeURIComponent(a.notes || '')}', '${a.priority}')"
+              class="text-xs text-gray-400 hover:text-blue-600 border rounded px-2 py-1 hover:border-blue-300 transition" title="Edit">Edit</button>
+            <div class="text-xs text-gray-400 text-right">
+              <div>${escapeHtml(a.queue_department || a.department)}</div>
+              <div>SLA ${slaTime}</div>
+              <div>#${a.id}</div>
+            </div>
           </div>
         </div>
         ${transitionUI}
@@ -174,6 +336,11 @@ async function loadPatient() {
 
 async function loadSummary() {
   const res = await fetch(`/patients/${PID}/summary`);
+  if (!res.ok) {
+    document.getElementById('summary').innerHTML = '<p class="text-red-600 text-sm">Failed to load summary.</p>';
+    document.getElementById('summaryText').textContent = '';
+    return;
+  }
   const s = await res.json();
   document.getElementById('summary').innerHTML = [
     ['Total', s.total_actions, 'bg-white'],
@@ -187,52 +354,180 @@ async function loadSummary() {
       <div class="text-xs text-gray-500">${label}</div>
     </div>
   `).join('');
+  document.getElementById('summaryText').textContent = s.summary_text || '';
 }
 
 async function loadTimeline() {
-  const res = await fetch(`/actions/patients/${PID}/timeline`);
+  const res = await fetch(`/patients/${PID}/timeline`);
+  if (!res.ok) {
+    document.getElementById('timeline').innerHTML = '<p class="text-red-600 text-sm">Failed to load timeline.</p>';
+    return;
+  }
   const events = await res.json();
   const el = document.getElementById('timeline');
   if (events.length === 0) {
     el.innerHTML = '<p class="text-gray-400 text-sm">No events.</p>';
     return;
   }
-  el.innerHTML = events.map(e => `
-    <div class="flex items-center gap-3 text-sm">
-      <span class="text-xs text-gray-400 w-44 shrink-0">${new Date(e.timestamp + 'Z').toLocaleString()}</span>
-      <span class="text-gray-500 font-medium">${e.action_name || 'Action #' + e.action_id}</span>
-      <span class="text-gray-500">${e.previous_state || '—'}</span>
+  el.innerHTML = events.map(e => {
+    const actorBits = [];
+    if (e.actor_name) actorBits.push(escapeHtml(e.actor_name));
+    if (e.actor_role) actorBits.push(escapeHtml(String(e.actor_role).toUpperCase()));
+    if (e.actor_department) actorBits.push(escapeHtml(e.actor_department));
+    const actorTag = actorBits.length > 0
+      ? `<span class="text-xs text-indigo-600">by ${actorBits.join(' • ')}</span>`
+      : '<span class="text-xs text-gray-400">by system</span>';
+    const deptTag = e.department
+      ? `<span class="text-xs text-gray-500">(${escapeHtml(e.department)})</span>`
+      : '';
+    return `
+    <div class="flex items-start gap-3 text-sm">
+      <span class="text-xs text-gray-400 w-44 shrink-0 pt-0.5">${new Date(e.timestamp + 'Z').toLocaleString()}</span>
+      <span class="text-gray-500 font-medium">${escapeHtml(e.action_name || ('Action #' + e.action_id))}</span>
+      ${deptTag}
+      <span class="text-gray-500">${escapeHtml(e.previous_state || '—')}</span>
       <span class="text-gray-400">&rarr;</span>
-      <span class="font-medium text-gray-700">${e.new_state}</span>
-    </div>
-  `).join('');
+      <span class="font-medium text-gray-700">${escapeHtml(e.new_state)}</span>
+      ${actorTag}
+      ${e.notes ? `<span class="text-gray-400 italic">"${escapeHtml(e.notes)}"</span>` : ''}
+    </div>`;
+  }).join('');
 }
 
-async function doTransition(actionId, newState) {
-  await fetch(`/actions/${actionId}/transition`, {
+// --- Edit ---
+function openEdit(id, titleEncoded, notesEncoded, priority) {
+  const title = decodeURIComponent(titleEncoded || '');
+  const notes = decodeURIComponent(notesEncoded || '');
+  editingActionId = id;
+  document.getElementById('editId').textContent = '#' + id;
+  document.getElementById('editTitle').value = title;
+  document.getElementById('editNotes').value = notes;
+  document.getElementById('editPriority').value = priority;
+  document.getElementById('editModal').classList.remove('hidden');
+}
+
+function closeEdit() {
+  document.getElementById('editModal').classList.add('hidden');
+  editingActionId = null;
+}
+
+async function saveEdit(e) {
+  e.preventDefault();
+  const res = await fetch(`/actions/${editingActionId}`, {
     method: 'PATCH',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ new_state: newState })
+    body: JSON.stringify({
+      title: document.getElementById('editTitle').value,
+      notes: document.getElementById('editNotes').value,
+      priority: document.getElementById('editPriority').value,
+    })
   });
+  if (!res.ok) {
+    let err = {};
+    try { err = await res.json(); } catch {}
+    alert(err.detail || err.error || 'Failed to update action');
+    return;
+  }
+  closeEdit();
 }
 
+// --- Transition ---
+function openTransition(id, from, to) {
+  pendingTransition = { id, from, to };
+  document.getElementById('transId').textContent = '#' + id;
+  document.getElementById('transLabel').textContent = `${from} → ${to}`;
+  document.getElementById('transNotes').value = '';
+  document.getElementById('transitionModal').classList.remove('hidden');
+}
+
+function closeTransition() {
+  document.getElementById('transitionModal').classList.add('hidden');
+  pendingTransition = null;
+}
+
+async function confirmTransition(e) {
+  e.preventDefault();
+  const notes = document.getElementById('transNotes').value;
+  const res = await fetch(`/actions/${pendingTransition.id}/transition`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ new_state: pendingTransition.to, notes })
+  });
+  if (!res.ok) {
+    let err = {};
+    try { err = await res.json(); } catch {}
+    alert(err.detail || err.error || 'Failed transition');
+    return;
+  }
+  closeTransition();
+}
+
+// --- Create Action ---
 async function createAction(e) {
   e.preventDefault();
   const typeVal = document.getElementById('aType').value;
   const priority = document.getElementById('aPriority').value;
+  const title = document.getElementById('aTitle').value.trim();
+  const departmentTarget = document.getElementById('aDeptTarget').value.trim();
+  const notes = document.getElementById('aNotes').value;
+  if (!title) {
+    alert('Action title is required.');
+    return;
+  }
   let body;
   if (typeVal.startsWith('custom:')) {
-    body = { patient_id: PID, custom_action_type_id: parseInt(typeVal.split(':')[1]), priority };
+    body = { patient_id: PID, custom_action_type_id: parseInt(typeVal.split(':')[1]), priority, title, notes };
   } else {
-    body = { patient_id: PID, action_type: typeVal, priority };
+    body = { patient_id: PID, action_type: typeVal, priority, title, notes, department_target: departmentTarget || null };
   }
-  await fetch('/actions', {
+  const res = await fetch('/actions', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(body)
   });
+  if (!res.ok) {
+    let err = {};
+    try { err = await res.json(); } catch {}
+    alert(err.detail || err.error || 'Failed to create action');
+    return;
+  }
+  document.getElementById('aTitle').value = '';
+  document.getElementById('aDeptTarget').value = '';
+  document.getElementById('aNotes').value = '';
   document.getElementById('newActionForm').classList.add('hidden');
   refresh();
+}
+
+// --- Create Custom Type ---
+async function createCustomType(e) {
+  e.preventDefault();
+  const states = document.getElementById('ctStates').value.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+  if (states.length < 2) { alert('Need at least 2 states'); return; }
+  const body = {
+    name: document.getElementById('ctName').value.trim().toUpperCase().replace(/\s+/g, '_'),
+    department: document.getElementById('ctDept').value.trim(),
+    states,
+    terminal_state: states[states.length - 1],
+    sla_routine_minutes: parseInt(document.getElementById('ctSlaR').value, 10) || 120,
+    sla_urgent_minutes: parseInt(document.getElementById('ctSlaU').value, 10) || 30,
+    sla_critical_minutes: parseInt(document.getElementById('ctSlaC').value, 10) || 10,
+  };
+  const res = await fetch('/custom-action-types', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
+  if (res.ok) {
+    document.getElementById('ctName').value = '';
+    document.getElementById('ctDept').value = '';
+    document.getElementById('ctStates').value = '';
+    document.getElementById('customTypeForm').classList.add('hidden');
+    await loadCustomTypes();
+  } else {
+    let err = {};
+    try { err = await res.json(); } catch {}
+    alert(err.detail || 'Failed to create custom type');
+  }
 }
 
 function refresh() {
@@ -247,7 +542,8 @@ let ws;
 
 function connectWS() {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  ws = new WebSocket(`${proto}//${location.host}/ws/patients/${PID}`);
+  const token = getAuthToken() || '';
+  ws = new WebSocket(`${proto}//${location.host}/ws/patients/${PID}?token=${encodeURIComponent(token)}`);
   ws.onopen = () => { wsEl.textContent = 'Live'; wsEl.className = 'fixed bottom-4 right-4 text-xs px-3 py-1.5 rounded-full bg-green-100 text-green-700'; };
   ws.onmessage = () => { refresh(); };
   ws.onclose = () => {
@@ -258,6 +554,12 @@ function connectWS() {
 }
 
 loadCustomTypes().then(() => {
+  if (!CURRENT_USER || !['doctor', 'admin'].includes(CURRENT_USER.role)) {
+    document.getElementById('btnCustomType')?.classList.add('hidden');
+    document.getElementById('btnNewAction')?.classList.add('hidden');
+    document.getElementById('customTypeForm')?.classList.add('hidden');
+    document.getElementById('newActionForm')?.classList.add('hidden');
+  }
   connectWS();
   refresh();
 });
