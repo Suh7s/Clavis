@@ -10,6 +10,11 @@ from models import ActionEvent, ActionType, ClinicalAction, CustomActionType, Pa
 from services.access import can_access_department_queue, roles_allowed_for_transition
 from services.auth import get_current_user, require_roles
 from services.drug_interactions import check_interactions
+from services.safety_engine import (
+    SafetySeverity,
+    create_safety_event,
+    medication_dependency_violation,
+)
 from services.sla import compute_custom_sla_deadline, compute_sla_deadline, is_action_overdue, is_terminal_state
 from services.workflow import (
     default_department_for_action,
@@ -271,14 +276,52 @@ async def _transition_single_action(
         else:
             validate_transition(action.action_type, action.current_state, new_state)
     except ValueError as exc:
+        await create_safety_event(
+            session,
+            patient_id=action.patient_id,
+            action_id=action.id,
+            event_type="UNSAFE_TRANSITION",
+            severity=SafetySeverity.WARNING,
+            description=str(exc),
+            blocked=True,
+        )
         raise HTTPException(422, str(exc)) from exc
 
     allowed_roles = roles_allowed_for_transition(action, new_state)
     if current_user.role not in allowed_roles:
+        await create_safety_event(
+            session,
+            patient_id=action.patient_id,
+            action_id=action.id,
+            event_type="ROLE_VIOLATION",
+            severity=SafetySeverity.WARNING,
+            description=(
+                f"Role '{current_user.role.value}' attempted blocked transition "
+                f"to '{new_state}' for action #{action.id}"
+            ),
+            blocked=True,
+        )
         raise HTTPException(
             status_code=403,
             detail=f"Role '{current_user.role.value}' cannot transition this action to '{new_state}'",
         )
+
+    dependency_violation = medication_dependency_violation(
+        action=action,
+        new_state=new_state,
+        session=session,
+    )
+    if dependency_violation:
+        await create_safety_event(
+            session,
+            patient_id=action.patient_id,
+            action_id=action.id,
+            event_type="MEDICATION_DEPENDENCY",
+            severity=SafetySeverity.CRITICAL,
+            description=dependency_violation,
+            blocked=True,
+        )
+        raise HTTPException(400, dependency_violation)
 
     prev = action.current_state
     action.current_state = new_state
@@ -500,13 +543,24 @@ def patient_timeline(
 
 
 @router.get("/department/{department}")
-def department_queue(
+async def department_queue(
     department: str,
     include_terminal: bool = False,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
     if not can_access_department_queue(current_user.role, department):
+        await create_safety_event(
+            session,
+            patient_id=None,
+            action_id=None,
+            event_type="ROLE_VIOLATION",
+            severity=SafetySeverity.WARNING,
+            description=(
+                f"Role '{current_user.role.value}' blocked from department queue '{department}'"
+            ),
+            blocked=True,
+        )
         raise HTTPException(
             status_code=403,
             detail=f"Role '{current_user.role.value}' cannot access '{department}' queue",

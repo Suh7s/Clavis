@@ -52,6 +52,14 @@ class Patient(SQLModel, table=True):
     age: int
     gender: str
     blood_group: Optional[str] = None
+    allergies: Optional[str] = None
+    past_medical_history: Optional[str] = None
+    chronic_conditions: Optional[str] = None
+    current_medications: Optional[str] = None
+    surgical_history: Optional[str] = None
+    family_history: Optional[str] = None
+    social_history: Optional[str] = None
+    immunization_history: Optional[str] = None
     admission_date: Optional[datetime] = Field(default_factory=datetime.utcnow)
     ward: Optional[str] = None
     primary_doctor_id: Optional[int] = Field(default=None, foreign_key="user.id")

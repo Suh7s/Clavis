@@ -53,8 +53,8 @@
       --bg: #edf4f2;
       --bg-alt: #f7fbfa;
       --ink: #123138;
-      --ink-soft: #47646c;
-      --ink-faint: #6a858d;
+      --ink-soft: #3f5d65;
+      --ink-faint: #58727b;
       --line: rgba(18, 49, 56, 0.14);
 
       --surface: rgba(255, 255, 255, 0.82);
@@ -617,8 +617,30 @@
       border-color: var(--line) !important;
     }
 
+    #notificationButton,
+    #userMenuButton {
+      background: linear-gradient(130deg, rgba(255,255,255,0.88), rgba(243,250,248,0.9)) !important;
+      border-color: var(--line) !important;
+    }
+
+    #notificationPanel,
+    #userMenu {
+      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(245,251,250,0.94)) !important;
+      border-color: var(--line) !important;
+    }
+
     html.dark #themeToggleButton {
       background: linear-gradient(130deg, rgba(11,32,39,0.92), rgba(14,39,48,0.88)) !important;
+    }
+
+    html.dark #notificationButton,
+    html.dark #userMenuButton {
+      background: linear-gradient(130deg, rgba(10,31,39,0.92), rgba(13,37,45,0.88)) !important;
+    }
+
+    html.dark #notificationPanel,
+    html.dark #userMenu {
+      background: linear-gradient(180deg, rgba(9,27,34,0.96), rgba(7,22,29,0.94)) !important;
     }
 
     table thead th {
@@ -1460,6 +1482,13 @@
       border: 1px solid rgba(110, 232, 218, 0.28);
     }
 
+    html:not(.dark) .clavis-page-hero a.bg-white,
+    html:not(.dark) .clavis-page-hero button.bg-white,
+    html:not(.dark) .clavis-page-hero a.bg-slate-50,
+    html:not(.dark) .clavis-page-hero button.bg-slate-50 {
+      color: #0b5d57 !important;
+    }
+
     .clavis-page-hero .border-slate-200 {
       border-color: rgba(218, 255, 248, 0.28) !important;
     }
@@ -1585,7 +1614,9 @@
 
     html.dark #globalSearchInput,
     html.dark #themeToggleButton,
+    html.dark #notificationButton,
     html.dark #userMenuButton,
+    html.dark #notificationPanel,
     html.dark #userMenu,
     html.dark header {
       border-color: rgba(163, 205, 214, 0.26) !important;
@@ -1672,7 +1703,25 @@
     const sidebarEl = document.getElementById('sidenav');
     const sidebarBackdropEl = document.getElementById('sidebarBackdrop');
     const userMenuEl = document.getElementById('userMenu');
+    const notificationPanelEl = document.getElementById('notificationPanel');
+    const notificationButtonEl = document.getElementById('notificationButton');
+    const notificationListEl = document.getElementById('notificationList');
+    const notificationDotEl = document.getElementById('notificationDot');
+    const notificationCountEl = document.getElementById('notificationCount');
+    const notificationMarkReadEl = document.getElementById('notificationMarkRead');
     const THEME_STORAGE_KEY = 'clavis_theme';
+    const NOTIFICATION_STORAGE_KEY = 'clavis_notifications_v1';
+    const NOTIFICATION_UNREAD_KEY = 'clavis_notifications_unread_v1';
+    const NOTIFICATION_MAX_ITEMS = 40;
+    const NOTIFICATION_DEDUPE_MS = 3000;
+    const notificationState = {
+      items: [],
+      unread: 0,
+      ws: null,
+      reconnectTimer: null,
+      dedupeKey: '',
+      dedupeAt: 0,
+    };
 
     function openSidebar() {
       if (!sidebarEl || !sidebarBackdropEl) return;
@@ -1688,7 +1737,193 @@
 
     function toggleUserMenu() {
       if (!userMenuEl) return;
+      closeNotificationPanel();
       userMenuEl.classList.toggle('hidden');
+    }
+
+    function isNotificationPanelOpen() {
+      return Boolean(notificationPanelEl && !notificationPanelEl.classList.contains('hidden'));
+    }
+
+    function closeNotificationPanel() {
+      if (!notificationPanelEl) return;
+      notificationPanelEl.classList.add('hidden');
+      notificationPanelEl.setAttribute('aria-hidden', 'true');
+      if (notificationButtonEl) {
+        notificationButtonEl.setAttribute('aria-expanded', 'false');
+      }
+    }
+
+    function escapeNotificationHtml(value) {
+      return String(value || '').replace(/[&<>"']/g, function(ch) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+      });
+    }
+
+    function notificationAge(iso) {
+      if (!iso) return 'just now';
+      const ts = new Date(iso).getTime();
+      if (!Number.isFinite(ts)) return 'just now';
+      const delta = Math.max(0, Date.now() - ts);
+      const seconds = Math.floor(delta / 1000);
+      if (seconds < 60) return 'just now';
+      const minutes = Math.floor(seconds / 60);
+      if (minutes < 60) return minutes + 'm ago';
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return hours + 'h ago';
+      const days = Math.floor(hours / 24);
+      return days + 'd ago';
+    }
+
+    function notificationToneClasses(tone) {
+      const t = String(tone || 'info').toLowerCase();
+      if (t === 'error') {
+        return {
+          dot: 'bg-rose-500',
+          card: 'border-rose-200 bg-rose-50/75 dark:border-rose-500/40 dark:bg-rose-950/35',
+          title: 'text-rose-700 dark:text-rose-200',
+          time: 'text-rose-600/90 dark:text-rose-300/85',
+        };
+      }
+      if (t === 'warning') {
+        return {
+          dot: 'bg-amber-500',
+          card: 'border-amber-200 bg-amber-50/75 dark:border-amber-500/40 dark:bg-amber-950/30',
+          title: 'text-amber-800 dark:text-amber-200',
+          time: 'text-amber-700/90 dark:text-amber-300/85',
+        };
+      }
+      if (t === 'success') {
+        return {
+          dot: 'bg-emerald-500',
+          card: 'border-emerald-200 bg-emerald-50/75 dark:border-emerald-500/40 dark:bg-emerald-950/30',
+          title: 'text-emerald-800 dark:text-emerald-200',
+          time: 'text-emerald-700/90 dark:text-emerald-300/85',
+        };
+      }
+      return {
+        dot: 'bg-indigo-500',
+        card: 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900/85',
+        title: 'text-slate-700 dark:text-slate-100',
+        time: 'text-slate-500 dark:text-slate-400',
+      };
+    }
+
+    function saveNotifications() {
+      try {
+        sessionStorage.setItem(NOTIFICATION_STORAGE_KEY, JSON.stringify(notificationState.items.slice(0, NOTIFICATION_MAX_ITEMS)));
+        sessionStorage.setItem(NOTIFICATION_UNREAD_KEY, String(notificationState.unread));
+      } catch (_err) {}
+    }
+
+    function loadNotifications() {
+      try {
+        const raw = sessionStorage.getItem(NOTIFICATION_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        notificationState.items = Array.isArray(parsed)
+          ? parsed.filter(function(item) {
+            return item && typeof item.message === 'string' && typeof item.timestamp === 'string';
+          }).slice(0, NOTIFICATION_MAX_ITEMS)
+          : [];
+        const unreadRaw = Number.parseInt(sessionStorage.getItem(NOTIFICATION_UNREAD_KEY) || '0', 10);
+        notificationState.unread = Number.isFinite(unreadRaw) ? Math.max(0, Math.min(unreadRaw, notificationState.items.length)) : 0;
+      } catch (_err) {
+        notificationState.items = [];
+        notificationState.unread = 0;
+      }
+    }
+
+    function updateNotificationBadge() {
+      const unread = notificationState.unread;
+      if (notificationDotEl) {
+        notificationDotEl.classList.toggle('hidden', unread <= 0);
+      }
+      if (notificationCountEl) {
+        notificationCountEl.textContent = unread > 99 ? '99+' : String(unread);
+        notificationCountEl.classList.toggle('hidden', unread <= 0);
+      }
+      if (notificationButtonEl) {
+        notificationButtonEl.setAttribute('aria-label', unread > 0 ? ('Notifications (' + unread + ' unread)') : 'Notifications');
+        notificationButtonEl.setAttribute('aria-expanded', isNotificationPanelOpen() ? 'true' : 'false');
+      }
+      if (notificationMarkReadEl) {
+        notificationMarkReadEl.disabled = unread <= 0;
+      }
+    }
+
+    function renderNotifications() {
+      if (!notificationListEl) return;
+      if (!notificationState.items.length) {
+        notificationListEl.innerHTML = '<p class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-5 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">No notifications yet.</p>';
+        updateNotificationBadge();
+        return;
+      }
+
+      notificationListEl.innerHTML = notificationState.items.map(function(item) {
+        const classes = notificationToneClasses(item.tone);
+        return (
+          '<div class="rounded-xl border px-2.5 py-2 transition-colors ' + classes.card + '">' +
+            '<div class="flex items-start gap-2">' +
+              '<span class="mt-1 inline-flex h-2 w-2 rounded-full ' + classes.dot + '"></span>' +
+              '<div class="min-w-0">' +
+                '<p class="text-xs font-medium leading-snug ' + classes.title + '">' + escapeNotificationHtml(item.message) + '</p>' +
+                '<p class="mt-1 text-[11px] ' + classes.time + '">' + notificationAge(item.timestamp) + '</p>' +
+              '</div>' +
+            '</div>' +
+          '</div>'
+        );
+      }).join('');
+      updateNotificationBadge();
+    }
+
+    function markNotificationsRead() {
+      notificationState.unread = 0;
+      saveNotifications();
+      updateNotificationBadge();
+    }
+
+    function addNotification(message, tone) {
+      const text = String(message || '').trim();
+      if (!text) return;
+
+      const now = Date.now();
+      const dedupeKey = text + '|' + String(tone || 'info');
+      if (notificationState.dedupeKey === dedupeKey && (now - notificationState.dedupeAt) < NOTIFICATION_DEDUPE_MS) {
+        return;
+      }
+      notificationState.dedupeKey = dedupeKey;
+      notificationState.dedupeAt = now;
+
+      notificationState.items.unshift({
+        id: String(now) + '-' + Math.random().toString(36).slice(2, 8),
+        message: text,
+        tone: String(tone || 'info').toLowerCase(),
+        timestamp: new Date(now).toISOString(),
+      });
+      if (notificationState.items.length > NOTIFICATION_MAX_ITEMS) {
+        notificationState.items = notificationState.items.slice(0, NOTIFICATION_MAX_ITEMS);
+      }
+      if (isNotificationPanelOpen()) {
+        notificationState.unread = 0;
+      } else {
+        notificationState.unread = Math.min(notificationState.items.length, notificationState.unread + 1);
+      }
+      saveNotifications();
+      renderNotifications();
+    }
+
+    function toggleNotifications() {
+      if (!notificationPanelEl) return;
+      const opening = !isNotificationPanelOpen();
+      if (userMenuEl) userMenuEl.classList.add('hidden');
+      notificationPanelEl.classList.toggle('hidden');
+      notificationPanelEl.setAttribute('aria-hidden', opening ? 'false' : 'true');
+      if (notificationButtonEl) {
+        notificationButtonEl.setAttribute('aria-expanded', opening ? 'true' : 'false');
+      }
+      if (opening) {
+        markNotificationsRead();
+      }
     }
 
     function getStoredTheme() {
@@ -1747,6 +1982,13 @@
     function clearAuthSession() {
       sessionStorage.removeItem('clavis_token');
       sessionStorage.removeItem('clavis_user');
+      sessionStorage.removeItem(NOTIFICATION_STORAGE_KEY);
+      sessionStorage.removeItem(NOTIFICATION_UNREAD_KEY);
+      notificationState.items = [];
+      notificationState.unread = 0;
+      closeNotificationPanel();
+      updateNotificationBadge();
+      renderNotifications();
     }
 
     function setAuthSession(token, user) {
@@ -1787,7 +2029,131 @@
       return !urlPath.startsWith('/auth/login') && !urlPath.startsWith('/api/v1/auth/login') && !urlPath.startsWith('/health');
     }
 
+    function notificationFromPayload(payload) {
+      if (!payload || typeof payload !== 'object') return null;
+      const event = String(payload.event || '').toLowerCase();
+      if (event === 'action_created') {
+        return {
+          message: 'New action #' + (payload.action_id || '?') + ' for patient #' + (payload.patient_id || '?'),
+          tone: 'info',
+        };
+      }
+      if (event === 'action_updated') {
+        return {
+          message: 'Action #' + (payload.action_id || '?') + ' moved to ' + (payload.new_state || 'updated state'),
+          tone: 'success',
+        };
+      }
+      if (event === 'sla_overdue') {
+        return {
+          message: 'SLA overdue on action #' + (payload.action_id || '?'),
+          tone: 'warning',
+        };
+      }
+      if (event === 'sla_check') {
+        const overdueCount = Number(payload.overdue_count || 0);
+        if (!Number.isFinite(overdueCount) || overdueCount <= 0) {
+          return null;
+        }
+        return {
+          message: 'SLA check: ' + overdueCount + ' overdue action(s)',
+          tone: 'warning',
+        };
+      }
+      return null;
+    }
+
+    function scheduleNotificationReconnect() {
+      if (notificationState.reconnectTimer) return;
+      notificationState.reconnectTimer = setTimeout(function() {
+        notificationState.reconnectTimer = null;
+        connectNotificationSocket();
+      }, 3000);
+    }
+
+    function connectNotificationSocket() {
+      if (isPublicPath(window.location.pathname)) return;
+      const token = getAuthToken();
+      if (!token || typeof WebSocket === 'undefined') return;
+      if (notificationState.ws && (
+        notificationState.ws.readyState === WebSocket.OPEN ||
+        notificationState.ws.readyState === WebSocket.CONNECTING
+      )) {
+        return;
+      }
+
+      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = proto + '//' + window.location.host + '/ws/status-board?token=' + encodeURIComponent(token);
+
+      try {
+        const ws = new WebSocket(wsUrl);
+        notificationState.ws = ws;
+
+        ws.onmessage = function(event) {
+          try {
+            const payload = JSON.parse(event.data);
+            const mapped = notificationFromPayload(payload);
+            if (!mapped) return;
+            addNotification(mapped.message, mapped.tone);
+          } catch (_err) {}
+        };
+
+        ws.onclose = function(event) {
+          notificationState.ws = null;
+          const closeCode = event && Number.isFinite(event.code) ? event.code : 0;
+          if (closeCode === 1008) {
+            return;
+          }
+          if (getAuthToken() && !isPublicPath(window.location.pathname)) {
+            scheduleNotificationReconnect();
+          }
+        };
+
+        ws.onerror = function() {
+          try { ws.close(); } catch (_err) {}
+        };
+      } catch (_err) {}
+    }
+
+    function bindNotificationCenter() {
+      loadNotifications();
+      renderNotifications();
+      updateNotificationBadge();
+      closeNotificationPanel();
+
+      if (notificationMarkReadEl) {
+        notificationMarkReadEl.addEventListener('click', function(event) {
+          event.preventDefault();
+          markNotificationsRead();
+        });
+      }
+
+      if (typeof window.showToast === 'function' && !window.showToast.__notificationWrapped) {
+        const nativeShowToast = window.showToast;
+        const wrapped = function(message, tone, duration) {
+          const result = nativeShowToast(message, tone, duration);
+          const level = String(tone || 'info').toLowerCase();
+          if (message && (level === 'warning' || level === 'error')) {
+            addNotification(String(message), level);
+          }
+          return result;
+        };
+        wrapped.__notificationWrapped = true;
+        window.showToast = wrapped;
+      }
+    }
+
     function logout() {
+      if (notificationState.reconnectTimer) {
+        clearTimeout(notificationState.reconnectTimer);
+        notificationState.reconnectTimer = null;
+      }
+      if (notificationState.ws) {
+        try {
+          notificationState.ws.close();
+        } catch (_err) {}
+        notificationState.ws = null;
+      }
       clearAuthSession();
       location.href = '/login';
     }
@@ -1811,6 +2177,11 @@
     function bindKeyboardShortcuts() {
       document.addEventListener('keydown', function(event) {
         const key = String(event.key || '').toLowerCase();
+
+        if (key === 'escape' && isNotificationPanelOpen()) {
+          closeNotificationPanel();
+          return;
+        }
 
         if ((event.metaKey || event.ctrlKey) && key === 'k') {
           event.preventDefault();
@@ -1929,9 +2300,17 @@
 
     document.addEventListener('click', function(event) {
       const menuButton = document.getElementById('userMenuButton');
-      if (!menuButton || !userMenuEl) return;
-      if (!menuButton.contains(event.target) && !userMenuEl.contains(event.target)) {
+      if (menuButton && userMenuEl && !menuButton.contains(event.target) && !userMenuEl.contains(event.target)) {
         userMenuEl.classList.add('hidden');
+      }
+
+      if (
+        notificationButtonEl &&
+        notificationPanelEl &&
+        !notificationButtonEl.contains(event.target) &&
+        !notificationPanelEl.contains(event.target)
+      ) {
+        closeNotificationPanel();
       }
     });
 
@@ -1955,7 +2334,14 @@
       bindKpiGridLayout();
       if (!isPublicPath(window.location.pathname) && !getAuthToken()) {
         location.href = '/login';
+        return;
       }
+      if (isPublicPath(window.location.pathname) && !getAuthToken()) {
+        sessionStorage.removeItem(NOTIFICATION_STORAGE_KEY);
+        sessionStorage.removeItem(NOTIFICATION_UNREAD_KEY);
+      }
+      bindNotificationCenter();
+      connectNotificationSocket();
     });
 
     window.getAuthToken = getAuthToken;
@@ -1967,6 +2353,8 @@
     window.renderAuthUI = renderAuthUI;
     window.toggleDarkMode = toggleDarkMode;
     window.focusSearchTarget = focusSearchTarget;
+    window.toggleNotifications = toggleNotifications;
+    window.addNotification = addNotification;
 
     /* Cursor spotlight — purely visual */
     (function() {

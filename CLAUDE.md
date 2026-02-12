@@ -6,13 +6,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Install dependencies
-pip install fastapi sqlmodel uvicorn jinja2
+pip install fastapi sqlmodel uvicorn jinja2 python-multipart pytest httpx
 
 # Seed demo data (run from backend/)
 cd backend && python3 seed.py
 
 # Run dev server (run from backend/)
 cd backend && python3 -m uvicorn main:app --reload --port 8000
+
+# Run all tests (run from backend/)
+cd backend && pytest -q
+
+# Run a single test file
+cd backend && pytest tests/test_actions.py -q
+
+# Run a single test function
+cd backend && pytest tests/test_actions.py::test_create_action -q
 
 # Reset demo data (server must be running, requires CLAVIS_ENABLE_DEMO_RESET=1)
 curl http://localhost:8000/demo/reset
@@ -24,7 +33,9 @@ CLAVIS_ENABLE_DEMO_RESET=1 python3 demo/preflight_checks.py
 CLAVIS_ENABLE_DEMO_RESET=1 python3 demo/dpr_demo_run.py
 ```
 
-No automated test suite exists. Validation is done via `demo/preflight_checks.py` (8 checks covering RBAC, events, WebSocket, custom types, status board) and `demo/dpr_demo_run.py` (end-to-end workflow).
+### Testing
+
+Tests use pytest with FastAPI TestClient against an in-memory SQLite database (see `tests/conftest.py`). Each test gets a fresh DB via the `reset_db` autouse fixture. Shared fixtures provide pre-authenticated headers for each role (`doctor_headers`, `nurse_headers`, etc.) and a `patient_id` factory. Additional validation via `demo/preflight_checks.py` (8 checks covering RBAC, events, WebSocket, custom types, status board) and `demo/dpr_demo_run.py` (end-to-end workflow).
 
 ## Environment Variables
 
@@ -40,7 +51,7 @@ No automated test suite exists. Validation is done via `demo/preflight_checks.py
 
 ### Request Flow
 
-All API routers are mounted at both `/` and `/api/v1/` prefixes (including `notes.router` for patient notes). Template routes serve Jinja2 HTML at `/`, `/login`, `/patients/{id}/view`, `/departments/{department}/view`, `/status-board/view`. Auth is JWT Bearer tokens stored in `sessionStorage` on the frontend; `base.html` has a global fetch interceptor that attaches tokens and redirects to `/login` on 401.
+All API routers are mounted at both `/` and `/api/v1/` prefixes. Routers: `patients`, `actions`, `auth`, `notes`, `files`, `custom_types`, `audit`, `analytics`, `export`. Template routes serve Jinja2 HTML at `/`, `/login`, `/dashboard/view`, `/patients/view`, `/patients/{id}/view`, `/departments/{department}/view`, `/status-board/view`, `/audit-log/view`, `/analytics/view`. Auth is JWT Bearer tokens stored in `sessionStorage` on the frontend; `base.html` has a global fetch interceptor that attaches tokens and redirects to `/login` on 401.
 
 ### Patient Management
 
@@ -69,6 +80,10 @@ Actions auto-route to departments on creation: MEDICATION → Pharmacy, DIAGNOST
 ### Models (`models.py`)
 
 `Patient` includes `blood_group`, `admission_date`, `ward`, `primary_doctor_id` (FK User), and `is_active` (soft delete flag). `ClinicalAction` has **mutually exclusive** `action_type` (core enum) OR `custom_action_type_id` (FK) — never both, validated on creation. `ClinicalAction.updated_at` is set on edit/transition. `ActionEvent` is append-only (immutable audit trail). `PatientNote` stores free-text clinical notes per patient (author, note_type, content). `CustomActionType.states_json` stores ordered states as a JSON string with a property accessor.
+
+### Files & Attachments (`routers/files.py`)
+
+File uploads stored in `backend/uploads/` (created at startup). Attached to patients via the `Attachment` model. Upload endpoint at `POST /patients/{id}/files`, download at `GET /files/{file_id}`.
 
 ### Database (`database.py`)
 

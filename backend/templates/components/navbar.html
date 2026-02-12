@@ -28,12 +28,22 @@
         Theme
       </button>
 
-      <button type="button" class="relative rounded-xl border border-slate-200 bg-white p-2.5 text-slate-500 shadow-sm hover:bg-slate-50" aria-label="Notifications">
-        <span class="absolute right-2 top-2 inline-flex h-2 w-2 rounded-full bg-rose-500"></span>
-        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.857 17.082a23.848 23.848 0 0 1-5.714 0M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9m-6 13a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 21Z" />
-        </svg>
-      </button>
+      <div class="relative">
+        <button id="notificationButton" type="button" onclick="toggleNotifications()" class="relative rounded-xl border border-slate-200 bg-white p-2.5 text-slate-500 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-200 dark:hover:bg-slate-800/80" aria-label="Notifications" aria-expanded="false" aria-haspopup="true">
+          <span id="notificationDot" class="absolute right-2 top-2 hidden h-2 w-2 rounded-full bg-rose-500"></span>
+          <span id="notificationCount" class="absolute -right-1 -top-1 hidden min-w-[1rem] rounded-full bg-rose-600 px-1 py-0.5 text-[10px] font-semibold leading-none text-white shadow-sm">0</span>
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.857 17.082a23.848 23.848 0 0 1-5.714 0M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9m-6 13a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 21Z" />
+          </svg>
+        </button>
+        <div id="notificationPanel" class="absolute right-0 z-30 mt-2 hidden w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white/95 shadow-xl backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/95" aria-hidden="true">
+          <div class="flex items-center justify-between border-b border-slate-200 px-3 py-2 dark:border-slate-700">
+            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Notifications</p>
+            <button id="notificationMarkRead" type="button" class="rounded-md px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45 dark:text-slate-300 dark:hover:bg-slate-800">Mark all read</button>
+          </div>
+          <div id="notificationList" class="max-h-80 space-y-1 overflow-y-auto p-2"></div>
+        </div>
+      </div>
 
       <div class="relative">
         <button id="userMenuButton" type="button" onclick="toggleUserMenu()" class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-2 shadow-sm hover:bg-slate-50">

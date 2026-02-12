@@ -11,6 +11,13 @@ from models import (
     Patient, PatientTransfer, User, UserRole,
 )
 from services.auth import get_current_user, require_roles
+from services.safety_engine import (
+    SafetySeverity,
+    compute_patient_risk,
+    create_safety_event,
+    discharge_violations,
+    list_patient_safety_events,
+)
 from services.sla import is_action_overdue, is_terminal_state
 from services.workflow import primary_queue_department, queue_departments_for_action
 
@@ -24,6 +31,14 @@ class PatientCreate(BaseModel):
     age: int = Field(ge=0, le=130)
     gender: str = Field(min_length=1, max_length=32)
     blood_group: Optional[str] = Field(default=None, max_length=10)
+    allergies: Optional[str] = Field(default=None, max_length=2000)
+    past_medical_history: Optional[str] = Field(default=None, max_length=4000)
+    chronic_conditions: Optional[str] = Field(default=None, max_length=4000)
+    current_medications: Optional[str] = Field(default=None, max_length=4000)
+    surgical_history: Optional[str] = Field(default=None, max_length=4000)
+    family_history: Optional[str] = Field(default=None, max_length=4000)
+    social_history: Optional[str] = Field(default=None, max_length=4000)
+    immunization_history: Optional[str] = Field(default=None, max_length=4000)
     admission_date: Optional[datetime] = None
     ward: Optional[str] = Field(default=None, max_length=64)
     primary_doctor_id: Optional[int] = None
@@ -34,6 +49,14 @@ class PatientUpdate(BaseModel):
     age: Optional[int] = Field(default=None, ge=0, le=130)
     gender: Optional[str] = Field(default=None, min_length=1, max_length=32)
     blood_group: Optional[str] = Field(default=None, max_length=10)
+    allergies: Optional[str] = Field(default=None, max_length=2000)
+    past_medical_history: Optional[str] = Field(default=None, max_length=4000)
+    chronic_conditions: Optional[str] = Field(default=None, max_length=4000)
+    current_medications: Optional[str] = Field(default=None, max_length=4000)
+    surgical_history: Optional[str] = Field(default=None, max_length=4000)
+    family_history: Optional[str] = Field(default=None, max_length=4000)
+    social_history: Optional[str] = Field(default=None, max_length=4000)
+    immunization_history: Optional[str] = Field(default=None, max_length=4000)
     ward: Optional[str] = Field(default=None, max_length=64)
     primary_doctor_id: Optional[int] = None
 
@@ -143,6 +166,14 @@ def create_patient(
         age=body.age,
         gender=gender,
         blood_group=body.blood_group,
+        allergies=body.allergies,
+        past_medical_history=body.past_medical_history,
+        chronic_conditions=body.chronic_conditions,
+        current_medications=body.current_medications,
+        surgical_history=body.surgical_history,
+        family_history=body.family_history,
+        social_history=body.social_history,
+        immunization_history=body.immunization_history,
         admission_date=body.admission_date or datetime.utcnow(),
         ward=body.ward,
         primary_doctor_id=body.primary_doctor_id,
@@ -424,7 +455,7 @@ class DischargeRequest(BaseModel):
 
 
 @router.post("/{patient_id:int}/discharge")
-def discharge_patient(
+async def discharge_patient(
     patient_id: int,
     body: DischargeRequest,
     session: Session = Depends(get_session),
@@ -436,16 +467,19 @@ def discharge_patient(
     if patient.admission_status == AdmissionStatus.DISCHARGED:
         raise HTTPException(422, "Patient already discharged")
 
-    actions = session.exec(
-        select(ClinicalAction).where(ClinicalAction.patient_id == patient_id)
-    ).all()
-    for action in actions:
-        custom_terminal = _custom_terminal(action, session)
-        if not is_terminal_state(action.action_type, action.current_state, custom_terminal):
-            raise HTTPException(
-                422,
-                f"Cannot discharge: action #{action.id} ({action.title or 'Untitled'}) is still active",
-            )
+    violations = discharge_violations(patient_id, session)
+    if violations:
+        detail = "Cannot discharge: " + "; ".join(violations)
+        status_code = 400 if any("CRITICAL" in v or "overdue" in v for v in violations) else 422
+        await create_safety_event(
+            session,
+            patient_id=patient_id,
+            event_type="UNSAFE_DISCHARGE",
+            severity=SafetySeverity.CRITICAL,
+            description=detail,
+            blocked=True,
+        )
+        raise HTTPException(status_code, detail)
 
     patient.admission_status = AdmissionStatus.DISCHARGED
     patient.discharge_date = datetime.utcnow()
@@ -453,6 +487,37 @@ def discharge_patient(
     session.commit()
     session.refresh(patient)
     return patient
+
+
+@router.get("/{patient_id:int}/risk")
+def patient_risk(
+    patient_id: int,
+    session: Session = Depends(get_session),
+    _current_user: User = Depends(get_current_user),
+):
+    patient = session.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(404, "Patient not found")
+    return compute_patient_risk(patient_id, session)
+
+
+@router.get("/{patient_id:int}/safety-events")
+def patient_safety_events(
+    patient_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    session: Session = Depends(get_session),
+    _current_user: User = Depends(get_current_user),
+):
+    patient = session.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(404, "Patient not found")
+    return list_patient_safety_events(
+        patient_id,
+        page=page,
+        page_size=page_size,
+        session=session,
+    )
 
 
 class TransferRequest(BaseModel):

@@ -9,7 +9,7 @@ import secrets
 import time
 from typing import Callable
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from sqlmodel import Session, select
 
 from database import get_session
@@ -143,8 +143,39 @@ def get_current_user(
 def require_roles(*roles: UserRole | str) -> Callable:
     allowed = {role.value if isinstance(role, UserRole) else str(role) for role in roles}
 
-    def _dependency(current_user: User = Depends(get_current_user)) -> User:
+    def _path_int(request: Request, key: str) -> int | None:
+        raw = request.path_params.get(key)
+        if raw is None:
+            return None
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            return None
+
+    async def _dependency(
+        request: Request,
+        current_user: User = Depends(get_current_user),
+        session: Session = Depends(get_session),
+    ) -> User:
         if current_user.role.value not in allowed:
+            try:
+                from services.safety_engine import SafetySeverity, create_safety_event
+
+                allowed_text = ", ".join(sorted(allowed))
+                await create_safety_event(
+                    session,
+                    patient_id=_path_int(request, "patient_id"),
+                    action_id=_path_int(request, "action_id"),
+                    event_type="ROLE_VIOLATION",
+                    severity=SafetySeverity.WARNING,
+                    description=(
+                        f"Role '{current_user.role.value}' blocked on {request.method} {request.url.path}. "
+                        f"Allowed roles: {allowed_text}"
+                    ),
+                    blocked=True,
+                )
+            except Exception:
+                pass
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Role '{current_user.role.value}' is not allowed",

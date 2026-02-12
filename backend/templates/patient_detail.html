@@ -5,46 +5,124 @@
 
 {% block content %}
 <div class="space-y-6">
-  <section class="clavis-page-hero clavis-hero-section rounded-2xl border border-slate-200 p-5 shadow-sm">
+  <section class="clavis-page-hero clavis-hero-section rounded-3xl border border-indigo-100 bg-gradient-to-br from-white via-indigo-50/50 to-sky-50/50 p-6 shadow-sm">
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
       <div>
         <a href="/patients/view" class="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-700">← Back to Patients</a>
-        <h2 id="patientName" class="mt-2 text-2xl font-semibold text-slate-800">Loading patient...</h2>
+        <h2 id="patientName" class="mt-2 text-3xl font-semibold tracking-tight text-slate-800">Loading patient...</h2>
         <p id="patientMeta" class="mt-1 text-sm text-slate-500">Preparing live record</p>
       </div>
       <div id="patientBadgeRow" class="flex items-center gap-2"></div>
     </div>
-    <p id="summaryNarrative" class="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">Loading computed summary...</p>
+    <p id="summaryNarrative" class="mt-5 rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3 text-sm leading-relaxed text-slate-600 backdrop-blur-sm">Loading computed summary...</p>
   </section>
 
   <section id="patientWarnings" class="hidden rounded-2xl border p-4"></section>
 
   <section class="grid gap-6 xl:grid-cols-12">
     <aside class="space-y-6 xl:col-span-3">
-      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <article class="rounded-3xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/60 p-5 shadow-sm">
         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Patient Summary</p>
         <dl class="mt-4 space-y-3 text-sm">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between rounded-xl border border-slate-200/70 bg-white px-3 py-2">
             <dt class="text-slate-500">Age</dt>
             <dd id="summaryAge" class="font-medium text-slate-700">--</dd>
           </div>
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between rounded-xl border border-slate-200/70 bg-white px-3 py-2">
             <dt class="text-slate-500">Gender</dt>
             <dd id="summaryGender" class="font-medium text-slate-700">--</dd>
           </div>
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between rounded-xl border border-slate-200/70 bg-white px-3 py-2">
             <dt class="text-slate-500">Blood Group</dt>
             <dd id="summaryBlood" class="font-medium text-slate-700">--</dd>
           </div>
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between rounded-xl border border-slate-200/70 bg-white px-3 py-2">
             <dt class="text-slate-500">Ward</dt>
             <dd id="summaryWard" class="font-medium text-slate-700">--</dd>
           </div>
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between rounded-xl border border-slate-200/70 bg-white px-3 py-2">
             <dt class="text-slate-500">Status</dt>
             <dd id="summaryStatus" class="font-medium text-slate-700">--</dd>
           </div>
         </dl>
+      </article>
+
+      <article class="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Clinical Background</p>
+        <p class="mt-1 text-xs text-slate-500">Longitudinal context for safer decisions during current admission.</p>
+        <dl class="mt-4 space-y-2 text-sm">
+          <div class="rounded-xl border border-slate-200/80 bg-slate-50/80 p-3">
+            <dt class="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Allergies</dt>
+            <dd id="bgAllergies" class="mt-1 text-sm text-slate-700">--</dd>
+          </div>
+          <div class="rounded-xl border border-slate-200/80 bg-slate-50/80 p-3">
+            <dt class="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Past Medical History</dt>
+            <dd id="bgPastHistory" class="mt-1 text-sm text-slate-700">--</dd>
+          </div>
+          <div class="rounded-xl border border-slate-200/80 bg-slate-50/80 p-3">
+            <dt class="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Chronic Conditions</dt>
+            <dd id="bgChronicConditions" class="mt-1 text-sm text-slate-700">--</dd>
+          </div>
+          <div class="rounded-xl border border-slate-200/80 bg-slate-50/80 p-3">
+            <dt class="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Current Medications</dt>
+            <dd id="bgCurrentMedications" class="mt-1 text-sm text-slate-700">--</dd>
+          </div>
+          <div class="rounded-xl border border-slate-200/80 bg-slate-50/80 p-3">
+            <dt class="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Surgical History</dt>
+            <dd id="bgSurgicalHistory" class="mt-1 text-sm text-slate-700">--</dd>
+          </div>
+          <div class="rounded-xl border border-slate-200/80 bg-slate-50/80 p-3">
+            <dt class="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Family History</dt>
+            <dd id="bgFamilyHistory" class="mt-1 text-sm text-slate-700">--</dd>
+          </div>
+          <div class="rounded-xl border border-slate-200/80 bg-slate-50/80 p-3">
+            <dt class="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Social History</dt>
+            <dd id="bgSocialHistory" class="mt-1 text-sm text-slate-700">--</dd>
+          </div>
+          <div class="rounded-xl border border-slate-200/80 bg-slate-50/80 p-3">
+            <dt class="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Immunization</dt>
+            <dd id="bgImmunizationHistory" class="mt-1 text-sm text-slate-700">--</dd>
+          </div>
+        </dl>
+
+        <details class="mt-4 rounded-2xl border border-slate-200/80 bg-gradient-to-b from-slate-50 to-white p-3">
+          <summary class="cursor-pointer text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Update Background</summary>
+          <form id="backgroundForm" class="mt-3 space-y-3">
+            <div>
+              <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Allergies</label>
+              <textarea id="bgFormAllergies" rows="2" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100"></textarea>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Past Medical History</label>
+              <textarea id="bgFormPastHistory" rows="2" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100"></textarea>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Chronic Conditions</label>
+              <textarea id="bgFormChronicConditions" rows="2" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100"></textarea>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Current Medications</label>
+              <textarea id="bgFormCurrentMedications" rows="2" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100"></textarea>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Surgical History</label>
+              <textarea id="bgFormSurgicalHistory" rows="2" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100"></textarea>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Family History</label>
+              <textarea id="bgFormFamilyHistory" rows="2" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100"></textarea>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Social History</label>
+              <textarea id="bgFormSocialHistory" rows="2" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100"></textarea>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Immunization</label>
+              <textarea id="bgFormImmunizationHistory" rows="2" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100"></textarea>
+            </div>
+            <button id="bgSaveButton" type="submit" class="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Save Background</button>
+          </form>
+        </details>
       </article>
 
       <article class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 xl:grid-cols-1">
@@ -81,6 +159,16 @@
           <button id="refreshTimeline" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Refresh</button>
         </div>
         <div id="timelineList" class="mt-5 space-y-3"></div>
+      </article>
+
+      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Safety</p>
+            <h3 class="text-lg font-semibold text-slate-800">Safety Events</h3>
+          </div>
+        </div>
+        <div id="safetyEventsList" class="mt-5 space-y-3"></div>
       </article>
 
       <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -171,6 +259,55 @@
       </article>
 
       <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Documents</p>
+        <h3 class="text-lg font-semibold text-slate-800">Patient / Lab / Radiology Uploads</h3>
+        <p class="mt-1 text-xs text-slate-500">Attach reports directly to clinical actions so the whole team sees updates instantly.</p>
+
+        <div class="mt-3 flex flex-wrap gap-2">
+          <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">Patient Docs</span>
+          <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Lab Reports</span>
+          <span class="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">Radiology Files</span>
+        </div>
+
+        <form id="uploadAttachmentForm" class="mt-4 space-y-3">
+          <div>
+            <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Attach to Action (optional)</label>
+            <select id="attachmentActionId" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100">
+              <option value="">Patient-level document</option>
+            </select>
+            <p id="attachmentActionHint" class="mt-1 text-xs text-slate-500">Lab and Radiology teams should attach reports to the matching diagnostic action.</p>
+          </div>
+          <div>
+            <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Document File</label>
+            <button id="attachmentDropzone" type="button" class="w-full rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-3 py-4 text-left transition hover:border-indigo-300 hover:bg-indigo-50/40 focus:outline-none focus:ring-2 focus:ring-indigo-200">
+              <span class="flex items-start gap-3">
+                <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500">
+                  <svg class="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 15.5a4 4 0 0 1 .6-7.95A5.5 5.5 0 0 1 18 10a3.5 3.5 0 0 1-.5 6.96H15M12 9v8m0-8 3 3m-3-3-3 3"/>
+                  </svg>
+                </span>
+                <span class="min-w-0">
+                  <span id="attachmentDropzoneLabel" class="block text-sm font-semibold text-slate-700">Drop file here or click to browse</span>
+                  <span class="mt-0.5 block text-xs text-slate-500">PDF, image, or document up to 10MB.</span>
+                  <span id="attachmentSelectedFile" class="mt-1 block truncate text-xs text-slate-500">No file selected.</span>
+                </span>
+              </span>
+            </button>
+            <input id="attachmentFile" type="file" class="sr-only" />
+          </div>
+          <button id="uploadAttachmentButton" type="submit" class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Upload Document</button>
+        </form>
+
+        <div class="mt-4">
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Latest Uploads</p>
+            <button id="refreshAttachments" type="button" class="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50">Refresh</button>
+          </div>
+          <div id="attachmentsList" class="mt-3 space-y-2"></div>
+        </div>
+      </article>
+
+      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Clinical Notes</p>
         <h3 class="text-lg font-semibold text-slate-800">Quick Add Note</h3>
         <form id="createNoteForm" class="mt-4 space-y-3">
@@ -190,6 +327,24 @@
           <button id="createNoteButton" type="submit" class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Save Note</button>
         </form>
         <div id="notesList" class="mt-4 space-y-2"></div>
+      </article>
+
+      <article class="rounded-3xl border border-amber-200/80 bg-gradient-to-b from-amber-50/80 to-rose-50/40 p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Discharge</p>
+        <h3 class="text-lg font-semibold text-amber-900">Discharge Patient</h3>
+        <p id="dischargeHint" class="mt-1 text-xs leading-relaxed text-amber-800">Doctor/Admin can discharge when all safety rules are satisfied.</p>
+        <form id="dischargeForm" class="mt-4 space-y-3">
+          <div>
+            <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Discharge Notes (optional)</label>
+            <textarea id="dischargeNotes" rows="3" class="w-full rounded-xl border border-amber-200 bg-white/90 px-3 py-2.5 text-sm text-slate-700 focus:border-amber-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-100" placeholder="Discharge summary / follow-up instructions"></textarea>
+          </div>
+          <div>
+            <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Discharge Summary Document (optional)</label>
+            <input id="dischargeSummaryFile" type="file" accept=".pdf,.doc,.docx,.txt,.rtf,.odt,.png,.jpg,.jpeg" class="w-full rounded-xl border border-amber-200 bg-white/90 px-3 py-2.5 text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-amber-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-amber-800 hover:file:bg-amber-200" />
+            <p class="mt-1 text-xs text-amber-700">If provided, this file is uploaded as the discharge summary before discharge is finalized.</p>
+          </div>
+          <button id="dischargeButton" type="submit" class="w-full rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-amber-700">Discharge Patient</button>
+        </form>
       </article>
     </aside>
   </section>
@@ -229,8 +384,12 @@
     summary: null,
     timeline: [],
     notes: [],
+    attachments: [],
+    selectedAttachmentFile: null,
     customTypes: [],
     actionsById: {},
+    risk: null,
+    safetyEvents: [],
     ws: null,
     titleTouched: false
   };
@@ -251,6 +410,11 @@
     return date ? date.toLocaleString() : '--';
   }
 
+  function textOrDash(value) {
+    const raw = String(value ?? '').trim();
+    return raw || '--';
+  }
+
   function badgeClass(tone) {
     if (tone === 'rose') return 'bg-rose-100 text-rose-700 border-rose-200';
     if (tone === 'amber') return 'bg-amber-100 text-amber-700 border-amber-200';
@@ -258,6 +422,13 @@
     if (tone === 'indigo') return 'bg-indigo-100 text-indigo-700 border-indigo-200';
     if (tone === 'sky') return 'bg-sky-100 text-sky-700 border-sky-200';
     return 'bg-slate-100 text-slate-700 border-slate-200';
+  }
+
+  function riskTone(level) {
+    const normalized = String(level || '').toUpperCase();
+    if (normalized === 'HIGH') return 'rose';
+    if (normalized === 'MEDIUM') return 'amber';
+    return 'emerald';
   }
 
   function priorityRank(priority) {
@@ -356,6 +527,126 @@
     return body.detail || body.error || fallback;
   }
 
+  function formatFileSize(bytes) {
+    const size = Number(bytes || 0);
+    if (!Number.isFinite(size) || size <= 0) return '0 B';
+    if (size < 1024) return size + ' B';
+    if (size < 1024 * 1024) return (size / 1024).toFixed(1) + ' KB';
+    return (size / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function uploaderTone(role) {
+    const value = String(role || '').toLowerCase();
+    if (value === 'lab_tech') return 'amber';
+    if (value === 'radiologist') return 'indigo';
+    if (value === 'doctor') return 'sky';
+    if (value === 'nurse') return 'emerald';
+    return 'slate';
+  }
+
+  function attachmentCategory(file) {
+    const filename = String(file.filename || '').toLowerCase();
+    const contentType = String(file.file_type || '').toLowerCase();
+    const ext = filename.includes('.') ? filename.slice(filename.lastIndexOf('.') + 1) : '';
+    if (contentType.includes('pdf') || ext === 'pdf') return { key: 'pdf', label: 'PDF', tone: 'rose' };
+    if (contentType.startsWith('image/') || ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tif', 'tiff'].includes(ext)) return { key: 'image', label: 'Image', tone: 'indigo' };
+    if (contentType.includes('spreadsheet') || ['csv', 'xls', 'xlsx', 'ods'].includes(ext)) return { key: 'sheet', label: 'Sheet', tone: 'emerald' };
+    if (contentType.includes('word') || ['doc', 'docx', 'rtf', 'odt'].includes(ext)) return { key: 'doc', label: 'Document', tone: 'sky' };
+    if (contentType.includes('zip') || ['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return { key: 'archive', label: 'Archive', tone: 'amber' };
+    if (contentType.startsWith('text/') || ['txt', 'md', 'log', 'json', 'xml'].includes(ext)) return { key: 'text', label: 'Text', tone: 'slate' };
+    return { key: 'file', label: (ext || 'File').toUpperCase(), tone: 'slate' };
+  }
+
+  function attachmentIconSvg(category) {
+    if (category.key === 'pdf') {
+      return '<svg class="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zm0 0v5h5M8.5 16.5h1.2a1.3 1.3 0 1 0 0-2.6H8.5v2.6Zm0 0v2.1m4.2-4.7v4.7m0 0h1.1a1.5 1.5 0 0 0 0-3h-1.1m5.7-1.7h-2.1v4.7m0-2.3h1.8"/></svg>';
+    }
+    if (category.key === 'image') {
+      return '<svg class="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3.8" y="4.8" width="16.4" height="14.4" rx="2.4" stroke-width="1.8"/><circle cx="9" cy="10" r="1.7" stroke-width="1.8"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m7.2 17.2 3.8-3.9 2.4 2.4 2.3-2.3 1.9 1.8"/></svg>';
+    }
+    if (category.key === 'sheet') {
+      return '<svg class="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zm0 0v5h5M8 12h8M8 16h8M8 8h2"/></svg>';
+    }
+    if (category.key === 'archive') {
+      return '<svg class="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="4" y="6" width="16" height="14" rx="2" stroke-width="1.8"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 6V4h6v2M10.5 11.5h3M10.5 14.5h3"/></svg>';
+    }
+    if (category.key === 'doc') {
+      return '<svg class="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zm0 0v5h5M8.5 14.2h7M8.5 17.2h7M8.5 11.2h4"/></svg>';
+    }
+    return '<svg class="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zm0 0v5h5"/></svg>';
+  }
+
+  function setDropzoneActive(active) {
+    const dropzone = document.getElementById('attachmentDropzone');
+    if (!dropzone) return;
+    dropzone.classList.toggle('border-indigo-400', !!active);
+    dropzone.classList.toggle('bg-indigo-50/70', !!active);
+  }
+
+  function setSelectedAttachmentFile(file) {
+    state.selectedAttachmentFile = file || null;
+    const selected = document.getElementById('attachmentSelectedFile');
+    const label = document.getElementById('attachmentDropzoneLabel');
+    if (!selected || !label) return;
+    if (state.selectedAttachmentFile) {
+      const fileObj = state.selectedAttachmentFile;
+      selected.textContent = fileObj.name + ' (' + formatFileSize(fileObj.size) + ')';
+      selected.className = 'mt-1 block truncate text-xs text-emerald-700';
+      label.textContent = 'File ready to upload';
+    } else {
+      selected.textContent = 'No file selected.';
+      selected.className = 'mt-1 block truncate text-xs text-slate-500';
+      label.textContent = 'Drop file here or click to browse';
+    }
+  }
+
+  function bindAttachmentDropzone() {
+    const dropzone = document.getElementById('attachmentDropzone');
+    const fileInput = document.getElementById('attachmentFile');
+    if (!dropzone || !fileInput) return;
+
+    dropzone.addEventListener('click', () => {
+      if (dropzone.disabled || fileInput.disabled) return;
+      fileInput.click();
+    });
+
+    dropzone.addEventListener('keydown', (event) => {
+      if (dropzone.disabled || fileInput.disabled) return;
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        fileInput.click();
+      }
+    });
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+      setSelectedAttachmentFile(file);
+    });
+
+    ['dragenter', 'dragover'].forEach((type) => {
+      dropzone.addEventListener(type, (event) => {
+        if (dropzone.disabled || fileInput.disabled) return;
+        event.preventDefault();
+        setDropzoneActive(true);
+      });
+    });
+
+    ['dragleave', 'dragend', 'drop'].forEach((type) => {
+      dropzone.addEventListener(type, (event) => {
+        event.preventDefault();
+        setDropzoneActive(false);
+      });
+    });
+
+    dropzone.addEventListener('drop', (event) => {
+      if (dropzone.disabled || fileInput.disabled) return;
+      const files = event.dataTransfer && event.dataTransfer.files ? event.dataTransfer.files : null;
+      const file = files && files[0] ? files[0] : null;
+      if (!file) return;
+      setSelectedAttachmentFile(file);
+    });
+  }
+
   async function readError(response, fallback) {
     try {
       const payload = await response.json();
@@ -388,6 +679,8 @@
     const status = derivePatientStatus(patient);
     const topPriority = highestPriority(patient.actions || []);
     const priorityTone = topPriority === 'CRITICAL' ? 'rose' : topPriority === 'URGENT' ? 'amber' : 'sky';
+    const risk = state.risk || { score: 0, level: 'LOW' };
+    const riskLevel = String(risk.level || 'LOW').toUpperCase();
 
     document.getElementById('patientName').textContent = patient.name || ('Patient #' + PID);
     document.title = 'Clavis | ' + (patient.name || ('Patient #' + PID));
@@ -403,6 +696,7 @@
     document.getElementById('patientBadgeRow').innerHTML = `
       <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${badgeClass(status.tone)}">${status.label}</span>
       <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${badgeClass(priorityTone)}">${topPriority}</span>
+      <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${badgeClass(riskTone(riskLevel))}">Risk ${riskLevel} · ${Number(risk.score || 0)}</span>
     `;
 
     document.getElementById('summaryAge').textContent = patient.age ?? '--';
@@ -410,6 +704,32 @@
     document.getElementById('summaryBlood').textContent = patient.blood_group || '--';
     document.getElementById('summaryWard').textContent = patient.ward || '--';
     document.getElementById('summaryStatus').textContent = patient.admission_status || 'ADMITTED';
+  }
+
+  function renderClinicalBackground() {
+    if (!state.patient) return;
+    const patient = state.patient;
+    document.getElementById('bgAllergies').textContent = textOrDash(patient.allergies);
+    document.getElementById('bgPastHistory').textContent = textOrDash(patient.past_medical_history);
+    document.getElementById('bgChronicConditions').textContent = textOrDash(patient.chronic_conditions);
+    document.getElementById('bgCurrentMedications').textContent = textOrDash(patient.current_medications);
+    document.getElementById('bgSurgicalHistory').textContent = textOrDash(patient.surgical_history);
+    document.getElementById('bgFamilyHistory').textContent = textOrDash(patient.family_history);
+    document.getElementById('bgSocialHistory').textContent = textOrDash(patient.social_history);
+    document.getElementById('bgImmunizationHistory').textContent = textOrDash(patient.immunization_history);
+
+    const setFormValue = (id, value) => {
+      const el = document.getElementById(id);
+      if (el) el.value = String(value || '');
+    };
+    setFormValue('bgFormAllergies', patient.allergies);
+    setFormValue('bgFormPastHistory', patient.past_medical_history);
+    setFormValue('bgFormChronicConditions', patient.chronic_conditions);
+    setFormValue('bgFormCurrentMedications', patient.current_medications);
+    setFormValue('bgFormSurgicalHistory', patient.surgical_history);
+    setFormValue('bgFormFamilyHistory', patient.family_history);
+    setFormValue('bgFormSocialHistory', patient.social_history);
+    setFormValue('bgFormImmunizationHistory', patient.immunization_history);
   }
 
   function renderSummary() {
@@ -447,6 +767,7 @@
     if (!actions.length) {
       host.innerHTML = '<p class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">No actions yet for this patient.</p>';
       populateTransitionActions();
+      populateAttachmentActions();
       return;
     }
 
@@ -494,6 +815,7 @@
     });
 
     populateTransitionActions();
+    populateAttachmentActions();
   }
 
   function renderTimeline() {
@@ -530,6 +852,40 @@
     }).join('');
   }
 
+  function renderSafetyEvents() {
+    const host = document.getElementById('safetyEventsList');
+    if (!host) return;
+
+    const events = [...(state.safetyEvents || [])].sort((a, b) => {
+      const left = toDate(a.created_at);
+      const right = toDate(b.created_at);
+      return (right ? right.getTime() : 0) - (left ? left.getTime() : 0);
+    });
+
+    if (!events.length) {
+      host.innerHTML = '<p class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">No safety events recorded.</p>';
+      return;
+    }
+
+    host.innerHTML = events.map((event) => {
+      const severity = String(event.severity || 'INFO').toUpperCase();
+      const blocked = !!event.blocked;
+      const tone = severity === 'CRITICAL' ? 'rose' : severity === 'WARNING' ? 'amber' : 'emerald';
+      return `
+        <div class="rounded-xl border border-slate-200 p-3 ${blocked ? 'bg-rose-50/40' : 'bg-white'}">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+              <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${badgeClass(tone)}">${escapeHtml(severity)}</span>
+              <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${badgeClass(blocked ? 'rose' : 'slate')}">${blocked ? 'Blocked' : 'Observed'}</span>
+            </div>
+            <p class="text-xs text-slate-400">${formatDateTime(event.created_at)}</p>
+          </div>
+          <p class="mt-2 text-sm text-slate-700">${escapeHtml(event.description || 'Safety event')}</p>
+        </div>
+      `;
+    }).join('');
+  }
+
   function renderNotes() {
     const host = document.getElementById('notesList');
     if (!host) return;
@@ -554,6 +910,104 @@
     `).join('');
   }
 
+  function populateAttachmentActions() {
+    const select = document.getElementById('attachmentActionId');
+    if (!select) return;
+
+    const actions = (state.patient && Array.isArray(state.patient.actions)) ? state.patient.actions : [];
+    const previous = String(select.value || '');
+    const diagnostic = actions.filter((action) => String(action.action_type || '').toUpperCase() === 'DIAGNOSTIC');
+    const others = actions.filter((action) => String(action.action_type || '').toUpperCase() !== 'DIAGNOSTIC');
+    const toOption = (action) => `<option value="${action.id}">#${action.id} · ${escapeHtml(action.title || actionLabel(action))} · ${escapeHtml(action.current_state || '--')}</option>`;
+
+    let html = '<option value="">Patient-level document</option>';
+    if (diagnostic.length) {
+      html += '<optgroup label="Diagnostic (Lab / Radiology)">';
+      html += diagnostic.map(toOption).join('');
+      html += '</optgroup>';
+    }
+    if (others.length) {
+      html += '<optgroup label="Other Actions">';
+      html += others.map(toOption).join('');
+      html += '</optgroup>';
+    }
+    select.innerHTML = html;
+    if (previous && Array.from(select.options).some((option) => option.value === previous)) {
+      select.value = previous;
+      return;
+    }
+
+    const role = String((CURRENT_USER && CURRENT_USER.role) || '').toLowerCase();
+    if (role === 'lab_tech') {
+      const preferred = diagnostic.find((action) => String(action.department || '').toLowerCase() === 'laboratory');
+      if (preferred) select.value = String(preferred.id);
+    } else if (role === 'radiologist') {
+      const preferred = diagnostic.find((action) => String(action.department || '').toLowerCase() === 'radiology');
+      if (preferred) select.value = String(preferred.id);
+    }
+  }
+
+  function renderAttachments() {
+    const host = document.getElementById('attachmentsList');
+    if (!host) return;
+
+    const files = [...(state.attachments || [])].sort((a, b) => {
+      const left = toDate(a.created_at);
+      const right = toDate(b.created_at);
+      return (right ? right.getTime() : 0) - (left ? left.getTime() : 0);
+    });
+    if (!files.length) {
+      host.innerHTML = '<p class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500">No documents uploaded yet.</p>';
+      return;
+    }
+
+    host.innerHTML = files.slice(0, 10).map((file) => {
+      const role = String(file.uploader_role || '').toLowerCase();
+      const roleLabel = role ? role.replace(/_/g, ' ').toUpperCase() : 'STAFF';
+      const category = attachmentCategory(file);
+      const action = file.action_id ? state.actionsById[String(file.action_id)] : null;
+      const context = action
+        ? '#' + file.action_id + ' · ' + (action.title || actionLabel(action))
+        : 'Patient-level document';
+      return `
+        <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex min-w-0 items-start gap-2.5">
+              <span class="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${badgeClass(category.tone)}">
+                ${attachmentIconSvg(category)}
+              </span>
+              <div class="min-w-0">
+                <p class="truncate text-sm font-semibold text-slate-800">${escapeHtml(file.filename || 'Document')}</p>
+                <p class="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">${escapeHtml(category.label)}</p>
+                <p class="mt-0.5 truncate text-xs text-slate-500">${escapeHtml(context)}</p>
+                <p class="mt-1 text-xs text-slate-500">${formatFileSize(file.file_size)} · ${escapeHtml(file.uploader_name || 'Unknown')} · ${formatDateTime(file.created_at)}</p>
+              </div>
+            </div>
+            <div class="flex shrink-0 items-center gap-1.5">
+              <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(uploaderTone(role))}">${escapeHtml(roleLabel)}</span>
+              <button type="button" data-file-id="${file.id}" data-file-name="${escapeHtml(file.filename || 'document')}" class="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-white">Download</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    host.querySelectorAll('button[data-file-id][data-file-name]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const fileId = Number(button.getAttribute('data-file-id') || 0);
+        const fileName = String(button.getAttribute('data-file-name') || 'document');
+        if (!fileId) return;
+        downloadAttachment(fileId, fileName);
+      });
+    });
+  }
+
+  function clearAttachmentSelection() {
+    const input = document.getElementById('attachmentFile');
+    if (input) input.value = '';
+    setSelectedAttachmentFile(null);
+  }
+
   function populateActionTypeOptions() {
     const select = document.getElementById('createActionType');
     select.querySelectorAll('option[data-custom]').forEach((option) => option.remove());
@@ -572,25 +1026,106 @@
     return ['doctor', 'admin'].includes(String(CURRENT_USER.role).toLowerCase());
   }
 
+  function canManagePatient() {
+    if (!CURRENT_USER || !CURRENT_USER.role) return false;
+    return ['doctor', 'admin'].includes(String(CURRENT_USER.role).toLowerCase());
+  }
+
+  function canUploadDocuments() {
+    if (!CURRENT_USER || !CURRENT_USER.role) return false;
+    return ['doctor', 'admin', 'nurse', 'pharmacist', 'lab_tech', 'radiologist'].includes(String(CURRENT_USER.role).toLowerCase());
+  }
+
+  function canDischargePatient() {
+    if (!canManagePatient()) return false;
+    if (!state.patient) return false;
+    return String(state.patient.admission_status || '').toUpperCase() !== 'DISCHARGED';
+  }
+
   function applyRoleUI() {
     const createForm = document.getElementById('createActionForm');
     const createBtn = document.getElementById('createActionButton');
     const quickPresetButtons = document.querySelectorAll('#quickActionPresets button[data-preset]');
+    const uploadForm = document.getElementById('uploadAttachmentForm');
+    const uploadHint = document.getElementById('attachmentActionHint');
+    const backgroundForm = document.getElementById('backgroundForm');
+    const backgroundSaveButton = document.getElementById('bgSaveButton');
+    const dischargeForm = document.getElementById('dischargeForm');
+    const dischargeButton = document.getElementById('dischargeButton');
+    const dischargeHint = document.getElementById('dischargeHint');
     if (!createForm || !createBtn) return;
     if (canCreateActions()) {
       setCreateHint('Pick a quick preset or fill this form and submit once.', 'neutral');
-      return;
+    } else {
+      createForm.querySelectorAll('input, select, textarea, button').forEach((el) => {
+        el.disabled = true;
+        el.classList.add('cursor-not-allowed', 'opacity-60');
+      });
+      createBtn.textContent = 'Doctor/Admin only';
+      quickPresetButtons.forEach((btn) => {
+        btn.disabled = true;
+        btn.classList.add('cursor-not-allowed', 'opacity-60');
+      });
+      setCreateHint('Action creation is restricted for your role.', 'warning');
     }
-    createForm.querySelectorAll('input, select, textarea, button').forEach((el) => {
-      el.disabled = true;
-      el.classList.add('cursor-not-allowed', 'opacity-60');
-    });
-    createBtn.textContent = 'Doctor/Admin only';
-    quickPresetButtons.forEach((btn) => {
-      btn.disabled = true;
-      btn.classList.add('cursor-not-allowed', 'opacity-60');
-    });
-    setCreateHint('Action creation is restricted for your role.', 'warning');
+
+    const role = String((CURRENT_USER && CURRENT_USER.role) || '').toLowerCase();
+    if (uploadHint) {
+      if (role === 'lab_tech') {
+        uploadHint.textContent = 'Lab team: attach result files to the matching diagnostic action.';
+      } else if (role === 'radiologist') {
+        uploadHint.textContent = 'Radiology team: upload scan outputs and reports to the diagnostic action.';
+      } else {
+        uploadHint.textContent = 'Lab and Radiology teams should attach reports to the matching diagnostic action.';
+      }
+    }
+    if (!canUploadDocuments() && uploadForm) {
+      uploadForm.querySelectorAll('input, select, textarea, button').forEach((el) => {
+        el.disabled = true;
+        el.classList.add('cursor-not-allowed', 'opacity-60');
+      });
+    }
+
+    if (backgroundForm && backgroundSaveButton) {
+      if (!canManagePatient()) {
+        backgroundForm.querySelectorAll('input, textarea, button').forEach((el) => {
+          el.disabled = true;
+          el.classList.add('cursor-not-allowed', 'opacity-60');
+        });
+        backgroundSaveButton.textContent = 'Doctor/Admin only';
+      } else {
+        backgroundForm.querySelectorAll('input, textarea, button').forEach((el) => {
+          el.disabled = false;
+          el.classList.remove('cursor-not-allowed', 'opacity-60');
+        });
+        backgroundSaveButton.textContent = 'Save Background';
+      }
+    }
+
+    if (dischargeForm && dischargeButton && dischargeHint) {
+      if (!canManagePatient()) {
+        dischargeForm.querySelectorAll('input, textarea, button').forEach((el) => {
+          el.disabled = true;
+          el.classList.add('cursor-not-allowed', 'opacity-60');
+        });
+        dischargeButton.textContent = 'Doctor/Admin only';
+        dischargeHint.textContent = 'Only doctor/admin roles can discharge a patient.';
+      } else if (state.patient && String(state.patient.admission_status || '').toUpperCase() === 'DISCHARGED') {
+        dischargeForm.querySelectorAll('input, textarea, button').forEach((el) => {
+          el.disabled = true;
+          el.classList.add('cursor-not-allowed', 'opacity-60');
+        });
+        dischargeButton.textContent = 'Already Discharged';
+        dischargeHint.textContent = 'This patient is already discharged.';
+      } else {
+        dischargeForm.querySelectorAll('input, textarea, button').forEach((el) => {
+          el.disabled = false;
+          el.classList.remove('cursor-not-allowed', 'opacity-60');
+        });
+        dischargeButton.textContent = 'Discharge Patient';
+        dischargeHint.textContent = 'Doctor/Admin can discharge when all safety rules are satisfied.';
+      }
+    }
   }
 
   function populateTransitionActions() {
@@ -666,6 +1201,15 @@
     state.summary = await response.json();
   }
 
+  async function loadRisk() {
+    const response = await fetch('/patients/' + PID + '/risk');
+    if (!response.ok) {
+      state.risk = null;
+      return;
+    }
+    state.risk = await response.json();
+  }
+
   async function loadTimeline() {
     const response = await fetch('/patients/' + PID + '/timeline');
     if (!response.ok) {
@@ -684,13 +1228,36 @@
     state.notes = await response.json();
   }
 
+  async function loadAttachments() {
+    const response = await fetch('/patients/' + PID + '/files');
+    if (!response.ok) {
+      state.attachments = [];
+      return;
+    }
+    state.attachments = await response.json();
+  }
+
+  async function loadSafetyEvents() {
+    const response = await fetch('/patients/' + PID + '/safety-events?page=1&page_size=20');
+    if (!response.ok) {
+      state.safetyEvents = [];
+      return;
+    }
+    const payload = await response.json();
+    state.safetyEvents = Array.isArray(payload.events) ? payload.events : [];
+  }
+
   async function refreshPatientView() {
-    await Promise.all([loadPatient(), loadSummary(), loadTimeline(), loadNotes()]);
+    await Promise.all([loadPatient(), loadSummary(), loadRisk(), loadTimeline(), loadNotes(), loadAttachments(), loadSafetyEvents()]);
+    applyRoleUI();
     renderHeader();
+    renderClinicalBackground();
     renderSummary();
     renderActions();
     renderTimeline();
+    renderSafetyEvents();
     renderNotes();
+    renderAttachments();
   }
 
   function buildCreateActionPayload() {
@@ -838,6 +1405,186 @@
     renderNotes();
   }
 
+  function nullableFieldValue(id) {
+    const el = document.getElementById(id);
+    if (!el) return null;
+    const value = String(el.value || '').trim();
+    return value || null;
+  }
+
+  async function saveClinicalBackground(event) {
+    event.preventDefault();
+    if (!canManagePatient()) {
+      showToast('Only doctor/admin can update clinical background', 'warning');
+      return;
+    }
+
+    const payload = {
+      allergies: nullableFieldValue('bgFormAllergies'),
+      past_medical_history: nullableFieldValue('bgFormPastHistory'),
+      chronic_conditions: nullableFieldValue('bgFormChronicConditions'),
+      current_medications: nullableFieldValue('bgFormCurrentMedications'),
+      surgical_history: nullableFieldValue('bgFormSurgicalHistory'),
+      family_history: nullableFieldValue('bgFormFamilyHistory'),
+      social_history: nullableFieldValue('bgFormSocialHistory'),
+      immunization_history: nullableFieldValue('bgFormImmunizationHistory')
+    };
+
+    const button = document.getElementById('bgSaveButton');
+    if (button) {
+      button.disabled = true;
+      button.classList.add('cursor-not-allowed', 'opacity-60');
+      button.textContent = 'Saving...';
+    }
+
+    const response = await fetch('/patients/' + PID, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (button) {
+      button.disabled = false;
+      button.classList.remove('cursor-not-allowed', 'opacity-60');
+      button.textContent = 'Save Background';
+    }
+
+    if (!response.ok) {
+      const detail = await readError(response, 'Failed to update clinical background');
+      showToast(detail, 'error');
+      return;
+    }
+
+    showToast('Clinical background updated', 'success');
+    await refreshPatientView();
+  }
+
+  async function submitDischarge(event) {
+    event.preventDefault();
+    if (!canDischargePatient()) {
+      showToast('Discharge is not available for this patient', 'warning');
+      return;
+    }
+
+    const notes = String(document.getElementById('dischargeNotes').value || '').trim();
+    const summaryInput = document.getElementById('dischargeSummaryFile');
+    const summaryFile = summaryInput && summaryInput.files && summaryInput.files[0] ? summaryInput.files[0] : null;
+    const button = document.getElementById('dischargeButton');
+    if (button) {
+      button.disabled = true;
+      button.classList.add('cursor-not-allowed', 'opacity-60');
+      button.textContent = 'Discharging...';
+    }
+
+    if (summaryFile) {
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', summaryFile);
+      const uploadResponse = await fetch('/patients/' + PID + '/files', {
+        method: 'POST',
+        body: uploadFormData
+      });
+      if (!uploadResponse.ok) {
+        if (button) {
+          button.disabled = false;
+          button.classList.remove('cursor-not-allowed', 'opacity-60');
+          button.textContent = 'Discharge Patient';
+        }
+        const uploadError = await readError(uploadResponse, 'Failed to upload discharge summary document');
+        showToast(uploadError, 'error');
+        return;
+      }
+    }
+
+    const response = await fetch('/patients/' + PID + '/discharge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes: notes })
+    });
+
+    if (button) {
+      button.disabled = false;
+      button.classList.remove('cursor-not-allowed', 'opacity-60');
+      button.textContent = 'Discharge Patient';
+    }
+
+    if (!response.ok) {
+      const detail = await readError(response, 'Failed to discharge patient');
+      showToast(detail, 'error');
+      await refreshPatientView();
+      return;
+    }
+
+    showToast('Patient discharged', 'success');
+    document.getElementById('dischargeNotes').value = '';
+    if (summaryInput) summaryInput.value = '';
+    await refreshPatientView();
+  }
+
+  async function uploadAttachment(event) {
+    event.preventDefault();
+    if (!canUploadDocuments()) {
+      showToast('You are not allowed to upload documents', 'warning');
+      return;
+    }
+
+    const fileInput = document.getElementById('attachmentFile');
+    const actionIdRaw = String(document.getElementById('attachmentActionId').value || '').trim();
+    const button = document.getElementById('uploadAttachmentButton');
+    const file = state.selectedAttachmentFile || (fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null);
+    if (!file) {
+      showToast('Select a file to upload', 'warning');
+      return;
+    }
+
+    if (button) {
+      button.disabled = true;
+      button.classList.add('cursor-not-allowed', 'opacity-60');
+      button.textContent = 'Uploading...';
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    let url = '/patients/' + PID + '/files';
+    if (actionIdRaw) {
+      url += '?action_id=' + encodeURIComponent(actionIdRaw);
+    }
+
+    const response = await fetch(url, { method: 'POST', body: formData });
+    if (button) {
+      button.disabled = false;
+      button.classList.remove('cursor-not-allowed', 'opacity-60');
+      button.textContent = 'Upload Document';
+    }
+    if (!response.ok) {
+      const detail = await readError(response, 'Failed to upload file');
+      showToast(detail, 'error');
+      return;
+    }
+
+    clearAttachmentSelection();
+    showToast('Document uploaded', 'success');
+    await loadAttachments();
+    renderAttachments();
+  }
+
+  async function downloadAttachment(fileId, fileName) {
+    const response = await fetch('/files/' + fileId);
+    if (!response.ok) {
+      const detail = await readError(response, 'Failed to download file');
+      showToast(detail, 'error');
+      return;
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName || ('attachment-' + fileId);
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
+
   async function applyTransition(event) {
     event.preventDefault();
     const actionId = Number(document.getElementById('transitionActionId').value || 0);
@@ -871,6 +1618,7 @@
     if (payload.event === 'action_created') return 'New action #' + payload.action_id + ' created';
     if (payload.event === 'action_updated') return 'Action #' + payload.action_id + ' moved to ' + (payload.new_state || 'updated state');
     if (payload.event === 'sla_overdue') return 'SLA overdue alert for action #' + payload.action_id;
+    if (payload.event === 'safety_alert') return (payload.severity || 'Safety') + ': ' + (payload.description || 'Safety event');
     return 'Patient record updated';
   }
 
@@ -886,7 +1634,12 @@
       state.ws.onmessage = async function(event) {
         try {
           const payload = JSON.parse(event.data);
-          showToast(realtimeMessage(payload), payload && payload.event === 'sla_overdue' ? 'warning' : 'info');
+          let tone = 'info';
+          if (payload && payload.event === 'sla_overdue') tone = 'warning';
+          if (payload && payload.event === 'safety_alert') {
+            tone = String(payload.severity || '').toUpperCase() === 'CRITICAL' ? 'error' : 'warning';
+          }
+          showToast(realtimeMessage(payload), tone);
         } catch (_err) {
           showToast('Patient update received', 'info');
         }
@@ -903,6 +1656,13 @@
   document.getElementById('createActionForm')?.addEventListener('submit', createAction);
   document.getElementById('transitionForm')?.addEventListener('submit', applyTransition);
   document.getElementById('createNoteForm')?.addEventListener('submit', createNote);
+  document.getElementById('backgroundForm')?.addEventListener('submit', saveClinicalBackground);
+  document.getElementById('dischargeForm')?.addEventListener('submit', submitDischarge);
+  document.getElementById('uploadAttachmentForm')?.addEventListener('submit', uploadAttachment);
+  document.getElementById('refreshAttachments')?.addEventListener('click', async function() {
+    await loadAttachments();
+    renderAttachments();
+  });
   document.getElementById('transitionActionId')?.addEventListener('change', updateTransitionStates);
   document.getElementById('createActionType')?.addEventListener('change', function() {
     if (!state.titleTouched) updateCreateTitleSuggestion();
@@ -932,6 +1692,8 @@
 
   (async function init() {
     applyRoleUI();
+    bindAttachmentDropzone();
+    setSelectedAttachmentFile(null);
     try {
       await loadCustomTypes();
       updateCreateTitleSuggestion();

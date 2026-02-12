@@ -61,6 +61,7 @@ async def upload_file(
 
     result = attachment.model_dump()
     result["uploader_name"] = current_user.name
+    result["uploader_role"] = current_user.role.value
     return result
 
 
@@ -81,15 +82,17 @@ def list_files(
     ).all()
 
     uploader_ids = sorted({a.created_by for a in attachments})
-    uploader_map: dict[int, str] = {}
+    uploader_map: dict[int, User] = {}
     if uploader_ids:
         users = session.exec(select(User).where(User.id.in_(uploader_ids))).all()  # type: ignore[union-attr]
-        uploader_map = {u.id: u.name for u in users if u.id is not None}
+        uploader_map = {u.id: u for u in users if u.id is not None}
 
     result = []
     for a in attachments:
         data = a.model_dump()
-        data["uploader_name"] = uploader_map.get(a.created_by)
+        uploader = uploader_map.get(a.created_by)
+        data["uploader_name"] = uploader.name if uploader else None
+        data["uploader_role"] = uploader.role.value if uploader else None
         result.append(data)
     return result
 

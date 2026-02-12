@@ -23,6 +23,7 @@ from routers.notes import router as notes_router
 from routers.audit import router as audit_router
 from services.access import can_access_department_queue
 from services.auth import get_user_from_token
+from services.safety_engine import SafetyEvent
 from ws import manager
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -207,6 +208,7 @@ def demo_reset():
         session.exec(ActionEvent.__table__.delete())  # type: ignore[arg-type]
         session.exec(ClinicalAction.__table__.delete())  # type: ignore[arg-type]
         session.exec(CustomActionType.__table__.delete())  # type: ignore[arg-type]
+        session.exec(SafetyEvent.__table__.delete())  # type: ignore[arg-type]
         session.exec(PatientNote.__table__.delete())  # type: ignore[arg-type]
         session.exec(models.Patient.__table__.delete())  # type: ignore[arg-type]
         session.exec(User.__table__.delete())  # type: ignore[arg-type]
